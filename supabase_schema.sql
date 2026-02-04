@@ -28,21 +28,56 @@ create table if not exists app_settings (
 );
 
 -- Enable Realtime for these tables so all devices sync instantly
-alter publication supabase_realtime add table rooms;
-alter publication supabase_realtime add table petty_cash;
-alter publication supabase_realtime add table notes;
-alter publication supabase_realtime add table app_settings;
+-- We use a DO block to prevent errors if the tables are already in the publication
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'rooms') then
+    alter publication supabase_realtime add table rooms;
+  end if;
+  
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'petty_cash') then
+    alter publication supabase_realtime add table petty_cash;
+  end if;
+
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'notes') then
+    alter publication supabase_realtime add table notes;
+  end if;
+
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'app_settings') then
+    alter publication supabase_realtime add table app_settings;
+  end if;
+end;
+$$;
 
 -- Row Level Security (Optional: Open for demo, lock down for production)
--- For a simple hotel app with one login, we can leave RLS off or allow public access for now.
 alter table rooms enable row level security;
-create policy "Allow all access" on rooms for all using (true) with check (true);
+do $$
+begin
+  if not exists (select 1 from pg_policies where tablename = 'rooms' and policyname = 'Allow all access') then
+    create policy "Allow all access" on rooms for all using (true) with check (true);
+  end if;
+end $$;
 
 alter table petty_cash enable row level security;
-create policy "Allow all access" on petty_cash for all using (true) with check (true);
+do $$
+begin
+  if not exists (select 1 from pg_policies where tablename = 'petty_cash' and policyname = 'Allow all access') then
+    create policy "Allow all access" on petty_cash for all using (true) with check (true);
+  end if;
+end $$;
 
 alter table notes enable row level security;
-create policy "Allow all access" on notes for all using (true) with check (true);
+do $$
+begin
+  if not exists (select 1 from pg_policies where tablename = 'notes' and policyname = 'Allow all access') then
+    create policy "Allow all access" on notes for all using (true) with check (true);
+  end if;
+end $$;
 
 alter table app_settings enable row level security;
-create policy "Allow all access" on app_settings for all using (true) with check (true);
+do $$
+begin
+  if not exists (select 1 from pg_policies where tablename = 'app_settings' and policyname = 'Allow all access') then
+    create policy "Allow all access" on app_settings for all using (true) with check (true);
+  end if;
+end $$;
