@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
-import { Room, RoomStatus, BookingSource } from '../types';
-import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign } from 'lucide-react';
+import { Room, RoomStatus, BookingSource, Guest } from '../types';
+import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck } from 'lucide-react';
 import { generateWelcomeMessage, getMaintenanceAdvice } from '../services/geminiService';
 import { translations, Language } from '../translations';
+import { GuestFinder } from './GuestFinder';
 
 interface RoomDetailPanelProps {
   room: Room | null;
@@ -155,6 +157,16 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
     }
   };
 
+  const handleGuestSelect = (guest: Guest) => {
+      setEditedRoom({
+          ...editedRoom,
+          guestName: guest.full_name,
+          guestId: guest.id,
+          // Auto fill ID scanned if guest has an ID number in the system
+          isIdScanned: !!guest.id_number
+      });
+  };
+
   const handleGenerateWelcome = async () => {
     if (!editedRoom.guestName) return;
     setAiLoading(true);
@@ -238,10 +250,48 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
           {(canCheckIn || isOccupied) && (
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
               <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <UserIcon /> {t.detail.guestInfo}
+                <UserCheck className="w-5 h-5 text-indigo-600" /> {t.detail.guestInfo}
               </h3>
               
               <div className="space-y-4">
+                {/* Guest Finder / Searcher */}
+                {!editedRoom.guestName && (
+                    <GuestFinder onSelectGuest={handleGuestSelect} lang={lang} />
+                )}
+
+                {/* Selected Guest Display */}
+                {editedRoom.guestName && (
+                    <div className="bg-white border border-indigo-200 p-3 rounded-lg flex justify-between items-center mb-2 shadow-sm">
+                         <div className="flex items-center gap-2">
+                             <div className="bg-indigo-100 p-1.5 rounded-full text-indigo-700">
+                                 <UserIcon />
+                             </div>
+                             <div>
+                                 <div className="font-bold text-slate-900 text-sm">{editedRoom.guestName}</div>
+                                 <div className="text-xs text-slate-500">Guest ID Linked</div>
+                             </div>
+                         </div>
+                         <button 
+                             onClick={() => setEditedRoom({...editedRoom, guestName: undefined, guestId: undefined, isIdScanned: false})}
+                             className="text-xs text-rose-500 hover:text-rose-700 underline"
+                         >
+                             Change
+                         </button>
+                    </div>
+                )}
+
+                {/* Fallback Manual Name Input (hidden if name is set via finder, shown if user wants to edit or if legacy data) */}
+                <div className={editedRoom.guestName ? 'hidden' : ''}>
+                  <label className="block text-xs uppercase text-slate-700 font-bold mb-1">{t.detail.guestName}</label>
+                  <input 
+                    type="text" 
+                    value={editedRoom.guestName || ''}
+                    onChange={(e) => setEditedRoom({...editedRoom, guestName: e.target.value})}
+                    placeholder={t.detail.enterGuestName}
+                    className="w-full p-2 border border-slate-300 rounded focus:outline-none focus:border-indigo-500 bg-white text-slate-900 placeholder-slate-400"
+                  />
+                </div>
+
                 {/* Hourly Toggle */}
                 <div className="flex items-center gap-3 pb-2 border-b border-slate-200">
                     <button 
@@ -253,17 +303,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                     <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
                         <Clock className="w-4 h-4 text-slate-600" /> {t.detail.hourly}
                     </span>
-                </div>
-
-                <div>
-                  <label className="block text-xs uppercase text-slate-700 font-bold mb-1">{t.detail.guestName}</label>
-                  <input 
-                    type="text" 
-                    value={editedRoom.guestName || ''}
-                    onChange={(e) => setEditedRoom({...editedRoom, guestName: e.target.value})}
-                    placeholder={t.detail.enterGuestName}
-                    className="w-full p-2 border border-slate-300 rounded focus:outline-none focus:border-indigo-500 bg-white text-slate-900 placeholder-slate-400"
-                  />
                 </div>
 
                 {/* Sale Price Input */}
@@ -494,6 +533,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                       bookingSource: undefined,
                       isIdScanned: false,
                       salePrice: undefined,
+                      guestId: undefined,
                     });
                   }}
                   className="px-4 py-3 bg-white border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 transition-all shadow-sm"

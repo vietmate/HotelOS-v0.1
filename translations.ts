@@ -1,3 +1,4 @@
+
 import { RoomStatus, RoomType, BookingSource } from './types';
 
 export type Language = 'en' | 'vi';
@@ -104,6 +105,22 @@ export const translations = {
       prev: "Previous 14 Days",
       next: "Next 14 Days",
       jump: "Jump to date"
+    },
+    guest: {
+        findTitle: "Find or Add Guest",
+        searchPlaceholder: "Search by name or phone...",
+        addNew: "Add New Guest",
+        select: "Select",
+        fullName: "Full Name",
+        idNumber: "ID / Passport",
+        phone: "Phone Number",
+        email: "Email",
+        nationality: "Nationality",
+        save: "Save Guest",
+        cancel: "Cancel",
+        found: "Guests Found",
+        noResults: "No guests found. Create new?",
+        onboardSuccess: "Guest created successfully"
     }
   },
   vi: {
@@ -207,6 +224,22 @@ export const translations = {
       prev: "14 ngày trước",
       next: "14 ngày tới",
       jump: "Chọn ngày"
+    },
+    guest: {
+        findTitle: "Tìm hoặc Thêm Khách",
+        searchPlaceholder: "Tìm theo tên hoặc SĐT...",
+        addNew: "Thêm Khách Mới",
+        select: "Chọn",
+        fullName: "Họ và Tên",
+        idNumber: "CMND / CCCD / Hộ chiếu",
+        phone: "Số điện thoại",
+        email: "Email",
+        nationality: "Quốc tịch",
+        save: "Lưu Khách",
+        cancel: "Hủy",
+        found: "Khách đã có trong hệ thống",
+        noResults: "Không tìm thấy. Tạo mới?",
+        onboardSuccess: "Đã tạo khách hàng thành công"
     }
   }
 };

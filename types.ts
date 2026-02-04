@@ -1,3 +1,4 @@
+
 export enum RoomStatus {
   AVAILABLE = 'AVAILABLE',
   OCCUPIED = 'OCCUPIED',
@@ -28,6 +29,16 @@ export interface Reservation {
   source?: BookingSource;
 }
 
+export interface Guest {
+  id?: string;
+  full_name: string;
+  id_number?: string;
+  phone?: string;
+  email?: string;
+  nationality?: string;
+  notes?: string;
+}
+
 export interface Room {
   id: string;
   number: string;
@@ -38,6 +49,7 @@ export interface Room {
   price: number; // Base price
   salePrice?: number; // Actual sold price in VND
   guestName?: string;
+  guestId?: string; // Link to the Guest Table
   checkInDate?: string;
   checkOutDate?: string;
   checkInTime?: string;
