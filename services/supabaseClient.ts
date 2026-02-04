@@ -1,22 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Access environment variables using Vite's import.meta.env
-// Fallback to the provided credentials if env vars are missing
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://ypevnzikukgmixjvyzki.supabase.co';
-const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'sb_publishable_14y1KL0RVvOJYjcjeS3Xpg_R1lO5ewb';
+// --- INSTRUCTIONS ---
+// 1. Go to Supabase Dashboard -> Project Settings -> API
+// 2. Copy "Project URL" and paste it below.
+// 3. Copy "anon public" key and paste it below.
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn("Supabase URL or Key is missing. The app will fall back to local storage or strictly read-only mode depending on implementation.");
+const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'PASTE_YOUR_SUPABASE_URL_HERE';
+const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
+
+// Check if keys are still placeholders
+const isPlaceholder = supabaseUrl.includes('PASTE_YOUR') || supabaseAnonKey.includes('PASTE_YOUR');
+
+if (isPlaceholder) {
+  console.warn("Supabase keys are missing! The app will run in offline mode (LocalStorage).");
+} else {
+  console.log("Supabase Client initialized");
 }
 
-// We ensure valid strings are passed to avoid "supabaseUrl is required" error
-// Even if they are placeholders, the isSupabaseConfigured check handles logic downstream
-const validUrl = supabaseUrl || 'https://placeholder.supabase.co';
-const validKey = supabaseAnonKey || 'placeholder';
+// Create the client
+export const supabase = createClient(
+  isPlaceholder ? 'https://placeholder.supabase.co' : supabaseUrl, 
+  isPlaceholder ? 'placeholder' : supabaseAnonKey
+);
 
-export const supabase = createClient(validUrl, validKey);
-
-// Helper to check if we are configured with non-placeholder values
 export const isSupabaseConfigured = () => {
-    return !!supabaseUrl && !!supabaseAnonKey && supabaseUrl !== 'https://placeholder.supabase.co';
+    return !isPlaceholder && supabaseUrl !== 'https://placeholder.supabase.co';
 }

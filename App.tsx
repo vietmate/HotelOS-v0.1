@@ -8,7 +8,7 @@ import { ClockWidget } from './components/ClockWidget';
 import { PettyCashWidget } from './components/PettyCashWidget';
 import { CalendarView } from './components/CalendarView';
 import { NotesView } from './components/NotesView';
-import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff } from 'lucide-react';
+import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning } from 'lucide-react';
 import { translations, Language } from './translations';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 
@@ -39,8 +39,6 @@ const generateInitialRooms = (): Room[] => {
     // Logic to determine initial status
     let status = Math.random() > 0.7 ? RoomStatus.OCCUPIED : (Math.random() > 0.8 ? RoomStatus.DIRTY : RoomStatus.AVAILABLE);
     
-    if (i === 2) status = RoomStatus.DIRTY;
-
     const sources = [BookingSource.BOOKING_COM, BookingSource.AGODA, BookingSource.G2J, BookingSource.WALK_IN];
     const source = (status === RoomStatus.OCCUPIED) ? sources[Math.floor(Math.random() * sources.length)] : undefined;
     
@@ -72,16 +70,6 @@ const generateInitialRooms = (): Room[] => {
       bookingSource: source,
       isIdScanned: isIdScanned,
     };
-
-    if (i === 2) {
-      room.upcomingReservation = {
-        id: `res-${i}`,
-        guestName: "Alice Wonderland",
-        checkInDate: formatDate(tomorrow),
-        checkOutDate: formatDate(dayAfter),
-        source: BookingSource.BOOKING_COM
-      };
-    }
 
     return room;
   });
@@ -147,13 +135,17 @@ export default function App() {
                     return numA - numB;
                 });
                 setRooms(parsedRooms);
+                setIsConnected(true); // Explicitly set true on success
             } else {
                 // DB is empty, seed it
                 const initialRooms = generateInitialRooms();
                 const { error: seedError } = await supabase.from('rooms').insert(
                     initialRooms.map(r => ({ id: r.id, data: r }))
                 );
-                if (!seedError) setRooms(initialRooms);
+                if (!seedError) {
+                    setRooms(initialRooms);
+                    setIsConnected(true);
+                }
             }
 
             // 3. Fetch Settings
@@ -200,7 +192,11 @@ export default function App() {
                      if (payload.new.key === 'widget_order') setWidgetOrder(payload.new.value);
                  }
             })
-            .subscribe();
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log("Realtime connected");
+                }
+            });
 
         return () => { supabase.removeChannel(channel); };
     }
@@ -435,8 +431,12 @@ export default function App() {
                )}
                <div className="flex items-center gap-1">
                    <p className="text-xs text-slate-500 font-medium">{t.dashboard}</p>
-                   {!isConnected && (
-                       <span className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded flex items-center gap-1" title="Running in offline/local mode">
+                   {isConnected ? (
+                       <span className="text-[10px] bg-emerald-50 text-emerald-600 border border-emerald-100 px-1.5 py-0.5 rounded flex items-center gap-1.5 font-bold" title="Connected to Supabase Cloud">
+                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div> Online
+                       </span>
+                   ) : (
+                       <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded flex items-center gap-1.5 border border-slate-200" title="Running in offline/local mode">
                            <WifiOff className="w-3 h-3" /> Offline
                        </span>
                    )}

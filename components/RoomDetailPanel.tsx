@@ -209,16 +209,25 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
 
         {/* Upcoming Reservation Banner */}
         {editedRoom.upcomingReservation && (
-            <div className="mb-6 bg-purple-50 border border-purple-100 p-4 rounded-xl">
-                 <h4 className="flex items-center gap-2 text-purple-800 font-bold text-sm mb-2">
-                     <CalendarDays className="w-4 h-4" /> Upcoming Reservation
-                 </h4>
-                 <div className="text-sm text-purple-900">
-                     <div className="font-semibold">{editedRoom.upcomingReservation.guestName}</div>
-                     <div className="text-xs mt-1 opacity-80">
-                         {editedRoom.upcomingReservation.checkInDate} to {editedRoom.upcomingReservation.checkOutDate}
+            <div className="mb-6 bg-purple-50 border border-purple-100 p-4 rounded-xl flex justify-between items-start">
+                 <div>
+                     <h4 className="flex items-center gap-2 text-purple-800 font-bold text-sm mb-2">
+                         <CalendarDays className="w-4 h-4" /> Upcoming Reservation
+                     </h4>
+                     <div className="text-sm text-purple-900">
+                         <div className="font-semibold">{editedRoom.upcomingReservation.guestName}</div>
+                         <div className="text-xs mt-1 opacity-80">
+                             {editedRoom.upcomingReservation.checkInDate} to {editedRoom.upcomingReservation.checkOutDate}
+                         </div>
                      </div>
                  </div>
+                 <button 
+                    onClick={() => setEditedRoom({...editedRoom, upcomingReservation: undefined})}
+                    className="p-1.5 hover:bg-purple-100 rounded text-purple-700 transition-colors"
+                    title="Remove reservation"
+                 >
+                    <Trash2 className="w-4 h-4" />
+                 </button>
             </div>
         )}
 
