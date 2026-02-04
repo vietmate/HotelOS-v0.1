@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Coins, Plus, Minus, ChevronDown, ChevronUp, History, Trash2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { Coins, ChevronDown, ChevronUp, History, Trash2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { Currency, CashTransaction } from '../types';
 import { translations, Language } from '../translations';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 interface PettyCashWidgetProps {
   lang: Language;
@@ -22,24 +23,32 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
 
   // Load data
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        setTransactions(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse petty cash data");
-      }
-    } else {
-        // Init with some mock data if empty
-        const initialData: CashTransaction[] = [
-            { id: '1', amount: 500000, currency: Currency.VND, description: 'Opening Balance', date: new Date().toISOString(), type: 'IN' }
-        ];
-        setTransactions(initialData);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(initialData));
-    }
+    const loadData = async () => {
+        if (isSupabaseConfigured()) {
+            const { data, error } = await supabase
+                .from('petty_cash')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            if (data && !error) {
+                setTransactions(data.map(r => r.data as CashTransaction));
+            }
+        } else {
+            // Local Fallback
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+              try {
+                setTransactions(JSON.parse(saved));
+              } catch (e) {
+                console.error("Failed to parse petty cash data");
+              }
+            }
+        }
+    };
+    loadData();
   }, []);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!amount || !description) return;
     
     const numAmount = parseFloat(amount);
@@ -56,19 +65,29 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
 
     const updated = [newTx, ...transactions];
     setTransactions(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    
+    // Persist
+    if (isSupabaseConfigured()) {
+        await supabase.from('petty_cash').insert({ id: newTx.id, data: newTx });
+    } else {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    }
     
     // Reset Form
     setAmount('');
     setDescription('');
-    // Keep currency and type as they might be adding multiple similar items
   };
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const updated = transactions.filter(t => t.id !== id);
     setTransactions(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    
+    if (isSupabaseConfigured()) {
+        await supabase.from('petty_cash').delete().eq('id', id);
+    } else {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    }
   };
 
   // Calculate Balances
@@ -91,7 +110,6 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
     }).format(amount);
   };
 
-  // Get only currencies that have a balance (or have active transaction history, but usually just balance)
   const activeCurrencies = (Object.entries(balances) as [Currency, number][]).filter(([_, val]) => val !== 0);
 
   return (
@@ -109,7 +127,6 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
         {expanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
       </div>
 
-      {/* Summary View (Always Visible if not expanded, but let's show main currency balance) */}
       {!expanded && (
         <div className="px-4 pb-4 bg-white" onClick={() => setExpanded(true)}>
              <div className="text-2xl font-mono font-bold text-emerald-600">
@@ -123,11 +140,9 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
         </div>
       )}
 
-      {/* Expanded View */}
       {expanded && (
         <div className="p-4 border-t border-slate-100 animate-in slide-in-from-top-2">
             
-            {/* Balances List */}
             <div className="mb-4 space-y-2">
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t.pettyCash.balance}</h4>
                 {activeCurrencies.length > 0 ? (
@@ -144,11 +159,9 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
                 )}
             </div>
 
-            {/* Add Transaction Form */}
             <div className="mb-4 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t.pettyCash.add}</h4>
                 
-                {/* Type Toggle */}
                 <div className="flex bg-slate-50 rounded-lg p-1 border border-slate-200 mb-2">
                     <button 
                         onClick={() => setType('IN')}
@@ -200,7 +213,6 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
                 </div>
             </div>
 
-            {/* Recent History */}
             <div>
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
                     <History className="w-3 h-3" /> {t.pettyCash.history}

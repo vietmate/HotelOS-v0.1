@@ -8,8 +8,9 @@ import { ClockWidget } from './components/ClockWidget';
 import { PettyCashWidget } from './components/PettyCashWidget';
 import { CalendarView } from './components/CalendarView';
 import { NotesView } from './components/NotesView';
-import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical } from 'lucide-react';
+import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff } from 'lucide-react';
 import { translations, Language } from './translations';
+import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 
 const STORAGE_KEY_ROOMS = 'hotel_os_rooms_data';
 const STORAGE_KEY_HOTEL_NAME = 'hotel_os_name';
@@ -38,32 +39,24 @@ const generateInitialRooms = (): Room[] => {
     // Logic to determine initial status
     let status = Math.random() > 0.7 ? RoomStatus.OCCUPIED : (Math.random() > 0.8 ? RoomStatus.DIRTY : RoomStatus.AVAILABLE);
     
-    // Explicitly make Room 3 Dirty but with a reservation for demonstration
-    if (i === 2) {
-      status = RoomStatus.DIRTY;
-    }
+    if (i === 2) status = RoomStatus.DIRTY;
 
     const sources = [BookingSource.BOOKING_COM, BookingSource.AGODA, BookingSource.G2J, BookingSource.WALK_IN];
     const source = (status === RoomStatus.OCCUPIED) ? sources[Math.floor(Math.random() * sources.length)] : undefined;
     
-    // Randomly make some guests check out today for the alert demo
     const isCheckingOutToday = Math.random() > 0.6;
     const stayDuration = isCheckingOutToday ? 1 : (Math.floor(Math.random() * 3) + 2); 
     const checkOut = new Date(yesterday);
     checkOut.setDate(yesterday.getDate() + stayDuration);
 
-    // KBTTT / ID Scanned randomization for occupied rooms (80% chance true)
     const isIdScanned = status === RoomStatus.OCCUPIED ? Math.random() > 0.2 : undefined;
 
-    // Initial Price Logic
-    const basePrice = isSuite ? 1200000 : (isDouble ? 600000 : 400000); // Rough VND prices
+    const basePrice = isSuite ? 1200000 : (isDouble ? 600000 : 400000); 
     let salePrice = undefined;
     if (status === RoomStatus.OCCUPIED) {
-        // Simulate some variance in sale price
         salePrice = basePrice * (Math.random() > 0.5 ? 1 : 0.9); 
     }
 
-    // Create base room
     const room: Room = {
       id: `room-${i + 1}`,
       number: `${100 + i + 1}`,
@@ -80,7 +73,6 @@ const generateInitialRooms = (): Room[] => {
       isIdScanned: isIdScanned,
     };
 
-    // Add an upcoming reservation to the specific dirty room (Room 3)
     if (i === 2) {
       room.upcomingReservation = {
         id: `res-${i}`,
@@ -101,21 +93,10 @@ type WidgetId = 'clock' | 'pettyCash' | 'alerts' | 'occupancy' | 'stats';
 const DEFAULT_WIDGET_ORDER: WidgetId[] = ['clock', 'pettyCash', 'alerts', 'occupancy', 'stats'];
 
 export default function App() {
-  const [rooms, setRooms] = useState<Room[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_ROOMS);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse rooms from storage", e);
-      }
-    }
-    return generateInitialRooms();
-  });
-
-  const [hotelName, setHotelName] = useState(() => {
-    return localStorage.getItem(STORAGE_KEY_HOTEL_NAME) || 'HotelOS';
-  });
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [hotelName, setHotelName] = useState('HotelOS');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(true);
 
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [filter, setFilter] = useState<RoomStatus | 'ALL'>('ALL');
@@ -126,40 +107,147 @@ export default function App() {
   
   // Widget Reordering State
   const [isReordering, setIsReordering] = useState(false);
-  const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>(() => {
-      const saved = localStorage.getItem('hotel_widget_order');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          // Filter out any IDs that are no longer in DEFAULT_WIDGET_ORDER (e.g., 'quickActions')
-          return parsed.filter((id: string) => DEFAULT_WIDGET_ORDER.includes(id as WidgetId));
-        } catch(e) {
-          return DEFAULT_WIDGET_ORDER;
-        }
-      }
-      return DEFAULT_WIDGET_ORDER;
-  });
+  const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>(DEFAULT_WIDGET_ORDER);
   
   const dragItem = useRef<number | null>(null);
   const dragOverItem = useRef<number | null>(null);
 
   const t = translations[lang];
 
-  // Persistence Effects
+  // --- Supabase Data Fetching & Subscriptions ---
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_ROOMS, JSON.stringify(rooms));
-  }, [rooms]);
+    const fetchData = async () => {
+        setIsLoading(true);
+        
+        // 1. Fallback if no keys
+        if (!isSupabaseConfigured()) {
+            console.log("Using LocalStorage fallback");
+            setIsConnected(false);
+            const savedRooms = localStorage.getItem(STORAGE_KEY_ROOMS);
+            setRooms(savedRooms ? JSON.parse(savedRooms) : generateInitialRooms());
+            setHotelName(localStorage.getItem(STORAGE_KEY_HOTEL_NAME) || 'HotelOS');
+            const savedOrder = localStorage.getItem('hotel_widget_order');
+            if (savedOrder) setWidgetOrder(JSON.parse(savedOrder));
+            setIsLoading(false);
+            return;
+        }
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_HOTEL_NAME, hotelName);
-  }, [hotelName]);
+        try {
+            // 2. Fetch Rooms
+            const { data: roomsData, error: roomsError } = await supabase.from('rooms').select('*').order('id');
+            
+            if (roomsError) throw roomsError;
 
-  const handleRoomUpdate = (updatedRoom: Room) => {
+            if (roomsData && roomsData.length > 0) {
+                // Parse JSONB data back to Room objects
+                // Sort by ID naturally (room-1, room-2, room-10 issue handling if needed, but standard sort usually ok)
+                const parsedRooms = roomsData.map(r => r.data as Room).sort((a,b) => {
+                    const numA = parseInt(a.number);
+                    const numB = parseInt(b.number);
+                    return numA - numB;
+                });
+                setRooms(parsedRooms);
+            } else {
+                // DB is empty, seed it
+                const initialRooms = generateInitialRooms();
+                const { error: seedError } = await supabase.from('rooms').insert(
+                    initialRooms.map(r => ({ id: r.id, data: r }))
+                );
+                if (!seedError) setRooms(initialRooms);
+            }
+
+            // 3. Fetch Settings
+            const { data: settingsData } = await supabase.from('app_settings').select('*');
+            if (settingsData) {
+                const nameSetting = settingsData.find(s => s.key === 'hotel_name');
+                if (nameSetting) setHotelName(nameSetting.value);
+                
+                const orderSetting = settingsData.find(s => s.key === 'widget_order');
+                if (orderSetting) setWidgetOrder(orderSetting.value);
+            }
+
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            setIsConnected(false);
+            // Fallback to local
+             const savedRooms = localStorage.getItem(STORAGE_KEY_ROOMS);
+            setRooms(savedRooms ? JSON.parse(savedRooms) : generateInitialRooms());
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    fetchData();
+
+    // 4. Realtime Subscription
+    if (isSupabaseConfigured()) {
+        const channel = supabase.channel('hotel_updates')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, (payload) => {
+                if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+                    const newRoomData = payload.new.data as Room;
+                    setRooms(prev => {
+                        const exists = prev.find(r => r.id === newRoomData.id);
+                        if (exists) {
+                            return prev.map(r => r.id === newRoomData.id ? newRoomData : r);
+                        }
+                        return [...prev, newRoomData]; // Should sort here ideally
+                    });
+                }
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, (payload) => {
+                 if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+                     if (payload.new.key === 'hotel_name') setHotelName(payload.new.value);
+                     if (payload.new.key === 'widget_order') setWidgetOrder(payload.new.value);
+                 }
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }
+  }, []);
+
+  // --- Handlers ---
+
+  const handleRoomUpdate = async (updatedRoom: Room) => {
+    // Optimistic Update
     setRooms(prevRooms => prevRooms.map(r => r.id === updatedRoom.id ? updatedRoom : r));
-    if (updatedRoom.status === RoomStatus.DIRTY && selectedRoom?.status === RoomStatus.OCCUPIED) {
-       // logic handled inside the panel currently
+    
+    // Save to DB
+    if (isSupabaseConfigured()) {
+        const { error } = await supabase
+            .from('rooms')
+            .update({ data: updatedRoom, updated_at: new Date().toISOString() })
+            .eq('id', updatedRoom.id);
+            
+        if (error) console.error("Failed to update room:", error);
+    } else {
+        // Fallback
+        localStorage.setItem(STORAGE_KEY_ROOMS, JSON.stringify(rooms.map(r => r.id === updatedRoom.id ? updatedRoom : r)));
     }
   };
+
+  const handleNameSave = async (newName: string) => {
+      setHotelName(newName);
+      setIsEditingName(false);
+      
+      if (isSupabaseConfigured()) {
+          const { error } = await supabase.from('app_settings').upsert({ key: 'hotel_name', value: newName });
+          if (error) console.error("Failed to save name", error);
+      } else {
+          localStorage.setItem(STORAGE_KEY_HOTEL_NAME, newName);
+      }
+  };
+
+  const handleWidgetOrderSave = async (newOrder: WidgetId[]) => {
+      setWidgetOrder(newOrder);
+      if (isSupabaseConfigured()) {
+          await supabase.from('app_settings').upsert({ key: 'widget_order', value: newOrder });
+      } else {
+          localStorage.setItem('hotel_widget_order', JSON.stringify(newOrder));
+      }
+  };
+
+  // --- Filtering & Stats ---
 
   const filteredRooms = rooms.filter(room => {
     const matchesFilter = filter === 'ALL' || room.status === filter;
@@ -170,7 +258,7 @@ export default function App() {
   });
 
   const occupiedCount = rooms.filter(r => r.status === RoomStatus.OCCUPIED).length;
-  const occupancyPercentage = (occupiedCount / rooms.length) * 100;
+  const occupancyPercentage = rooms.length > 0 ? (occupiedCount / rooms.length) * 100 : 0;
 
   // Calculate Alerts
   const alerts = rooms.reduce((acc, room) => {
@@ -214,14 +302,16 @@ export default function App() {
       newOrder.splice(index, 0, draggedItemContent);
       
       dragItem.current = index;
-      setWidgetOrder(newOrder);
+      setWidgetOrder(newOrder); // Optimistic local
   };
 
   const handleDragEnd = () => {
       dragItem.current = null;
       dragOverItem.current = null;
-      localStorage.setItem('hotel_widget_order', JSON.stringify(widgetOrder));
+      handleWidgetOrderSave(widgetOrder);
   };
+
+  // --- Render Widgets ---
 
   const renderAlertsWidget = () => {
      const hasAlerts = alerts.soon > 0 || alerts.overdue > 0 || alerts.missingId > 0;
@@ -280,6 +370,14 @@ export default function App() {
   };
 
   const renderContent = () => {
+    if (isLoading) {
+        return (
+            <div className="flex h-full items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+        )
+    }
+
     switch(viewMode) {
       case 'calendar':
         return <CalendarView rooms={filteredRooms} onRoomClick={setSelectedRoom} lang={lang} />;
@@ -324,8 +422,8 @@ export default function App() {
                    type="text"
                    value={hotelName}
                    onChange={(e) => setHotelName(e.target.value)}
-                   onBlur={() => setIsEditingName(false)}
-                   onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+                   onBlur={() => handleNameSave(hotelName)}
+                   onKeyDown={(e) => e.key === 'Enter' && handleNameSave(hotelName)}
                    autoFocus
                    className="w-full bg-white border border-indigo-300 rounded px-1 py-0.5 text-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                  />
@@ -335,7 +433,14 @@ export default function App() {
                    <Pencil className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-all hover:text-indigo-500" />
                  </div>
                )}
-               <p className="text-xs text-slate-500 font-medium">{t.dashboard}</p>
+               <div className="flex items-center gap-1">
+                   <p className="text-xs text-slate-500 font-medium">{t.dashboard}</p>
+                   {!isConnected && (
+                       <span className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded flex items-center gap-1" title="Running in offline/local mode">
+                           <WifiOff className="w-3 h-3" /> Offline
+                       </span>
+                   )}
+               </div>
              </div>
           </div>
           <div className="flex items-center justify-between">

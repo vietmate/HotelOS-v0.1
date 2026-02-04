@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Save, Calendar, NotebookPen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, NotebookPen } from 'lucide-react';
 import { translations, Language } from '../translations';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 interface NotesViewProps {
   lang: Language;
@@ -12,15 +13,16 @@ export const NotesView: React.FC<NotesViewProps> = ({ lang }) => {
   const [noteContent, setNoteContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Helper to format date key for localStorage (YYYY-MM-DD)
+  // Helper to format date key for localStorage/DB (YYYY-MM-DD)
   const getDateKey = (date: Date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
-    return `hotel_notes_${y}-${m}-${d}`;
+    return `${y}-${m}-${d}`;
   };
 
-  // Helper for display date
+  const getLocalStorageKey = (date: Date) => `hotel_notes_${getDateKey(date)}`;
+
   const getDisplayDate = (date: Date) => {
     return date.toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
       weekday: 'long',
@@ -33,16 +35,35 @@ export const NotesView: React.FC<NotesViewProps> = ({ lang }) => {
   // Load notes when date changes
   useEffect(() => {
     const key = getDateKey(currentDate);
-    const savedNote = localStorage.getItem(key);
-    setNoteContent(savedNote || '');
+    
+    const loadNote = async () => {
+        if (isSupabaseConfigured()) {
+            const { data, error } = await supabase.from('notes').select('content').eq('date_key', key).single();
+            if (data) {
+                setNoteContent(data.content);
+            } else {
+                setNoteContent('');
+            }
+        } else {
+            const savedNote = localStorage.getItem(getLocalStorageKey(currentDate));
+            setNoteContent(savedNote || '');
+        }
+    };
+    loadNote();
   }, [currentDate]);
 
   // Save notes with a slight debounce
   useEffect(() => {
     const key = getDateKey(currentDate);
     setIsSaving(true);
-    const timer = setTimeout(() => {
-      localStorage.setItem(key, noteContent);
+    
+    const timer = setTimeout(async () => {
+      if (isSupabaseConfigured()) {
+          const { error } = await supabase.from('notes').upsert({ date_key: key, content: noteContent, updated_at: new Date().toISOString() });
+          if (error) console.error("Error saving note:", error);
+      } else {
+          localStorage.setItem(getLocalStorageKey(currentDate), noteContent);
+      }
       setIsSaving(false);
     }, 800);
 
@@ -116,7 +137,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ lang }) => {
            ) : (
              <>
                <CheckIcon />
-               {t.notes.saved}
+               {isSupabaseConfigured() ? "Saved to Cloud" : t.notes.saved}
              </>
            )}
         </div>
