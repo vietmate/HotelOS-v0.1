@@ -541,7 +541,7 @@ export default function App() {
         </div>
         
         <div className="p-4 border-t border-slate-100 dark:border-slate-800 text-center">
-          <p className="text-[10px] text-slate-400">v1.3.0 • {t.poweredBy}</p>
+          <p className="text-[10px] text-slate-400">© 2026 MINHTAM HotelOS</p>
         </div>
       </div>
 
