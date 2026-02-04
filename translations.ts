@@ -121,6 +121,12 @@ export const translations = {
         found: "Guests Found",
         noResults: "No guests found. Create new?",
         onboardSuccess: "Guest created successfully"
+    },
+    quick: {
+      title: "Quick Actions",
+      addGuest: "Add Client",
+      filterAvailable: "Show Available",
+      openNotes: "Daily Notes"
     }
   },
   vi: {
@@ -240,6 +246,12 @@ export const translations = {
         found: "Khách đã có trong hệ thống",
         noResults: "Không tìm thấy. Tạo mới?",
         onboardSuccess: "Đã tạo khách hàng thành công"
+    },
+    quick: {
+      title: "Tác Vụ Nhanh",
+      addGuest: "Thêm Khách",
+      filterAvailable: "Tìm Phòng Trống",
+      openNotes: "Sổ Giao Ca"
     }
   }
 };

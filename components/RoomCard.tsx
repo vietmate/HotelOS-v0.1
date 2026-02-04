@@ -10,16 +10,16 @@ interface RoomCardProps {
 }
 
 const getStatusColor = (status: RoomStatus, checkoutStatus: 'none' | 'soon' | 'overdue') => {
-  if (checkoutStatus === 'overdue') return 'bg-white border-rose-500 text-rose-700 ring-2 ring-rose-200 ring-offset-1';
-  if (checkoutStatus === 'soon') return 'bg-white border-amber-500 text-amber-700 ring-2 ring-amber-200 ring-offset-1';
+  if (checkoutStatus === 'overdue') return 'bg-white border-rose-500 text-rose-700 ring-2 ring-rose-200 ring-offset-1 dark:bg-slate-800 dark:border-rose-700 dark:text-rose-400 dark:ring-rose-900';
+  if (checkoutStatus === 'soon') return 'bg-white border-amber-500 text-amber-700 ring-2 ring-amber-200 ring-offset-1 dark:bg-slate-800 dark:border-amber-600 dark:text-amber-400 dark:ring-amber-900';
 
   switch (status) {
-    case RoomStatus.AVAILABLE: return 'bg-emerald-50 border-emerald-200 text-emerald-700';
-    case RoomStatus.OCCUPIED: return 'bg-blue-50 border-blue-200 text-blue-700';
-    case RoomStatus.DIRTY: return 'bg-amber-50 border-amber-200 text-amber-700';
-    case RoomStatus.MAINTENANCE: return 'bg-rose-50 border-rose-200 text-rose-700';
-    case RoomStatus.RESERVED: return 'bg-purple-50 border-purple-200 text-purple-700';
-    default: return 'bg-slate-50 border-slate-200 text-slate-700';
+    case RoomStatus.AVAILABLE: return 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900/50 dark:text-emerald-400';
+    case RoomStatus.OCCUPIED: return 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/40 dark:border-blue-900/50 dark:text-blue-400';
+    case RoomStatus.DIRTY: return 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-400';
+    case RoomStatus.MAINTENANCE: return 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-400';
+    case RoomStatus.RESERVED: return 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-950/40 dark:border-purple-900/50 dark:text-purple-400';
+    default: return 'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300';
   }
 };
 
@@ -110,7 +110,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
           
           {/* Sale Price Badge */}
           {room.salePrice && room.status === RoomStatus.OCCUPIED && (
-              <div className="bg-white/80 px-2 py-1 rounded-md text-xs font-bold shadow-sm border border-current/10 flex items-center gap-1" title={`${room.salePrice.toLocaleString()} VND`}>
+              <div className="bg-white/80 dark:bg-black/30 px-2 py-1 rounded-md text-xs font-bold shadow-sm border border-current/10 flex items-center gap-1" title={`${room.salePrice.toLocaleString()} VND`}>
                   <DollarSign className="w-3.5 h-3.5 opacity-80" />
                   <span className="text-sm font-extrabold">{formatPriceShort(room.salePrice)}</span>
                   <span className="text-[10px] opacity-70">VND</span>
@@ -126,7 +126,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
               </div>
               <div className="flex gap-2 mt-1">
                 {room.bookingSource && (
-                    <span className="text-[10px] bg-white/50 border border-current/20 px-1.5 py-0.5 rounded-md inline-block font-medium opacity-80">
+                    <span className="text-[10px] bg-white/50 dark:bg-black/20 border border-current/20 px-1.5 py-0.5 rounded-md inline-block font-medium opacity-80">
                         {t.sources[room.bookingSource]}
                     </span>
                 )}
@@ -134,8 +134,8 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
                 <div 
                     className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md font-bold border
                     ${room.isIdScanned 
-                        ? 'bg-emerald-100/50 text-emerald-800 border-emerald-200/50' 
-                        : 'bg-rose-100/80 text-rose-800 border-rose-200'}`}
+                        ? 'bg-emerald-100/50 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-200/50 dark:border-emerald-800/50' 
+                        : 'bg-rose-100/80 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'}`}
                     title={room.isIdScanned ? t.card.kbtttOk : t.card.kbtttMissing}
                 >
                     {room.isIdScanned ? <FileCheck className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
@@ -149,7 +149,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
       </div>
 
       {showDates && (
-        <div className="mt-auto pt-3 border-t border-black/5 text-xs grid grid-cols-2 gap-2 opacity-80">
+        <div className="mt-auto pt-3 border-t border-black/5 dark:border-white/10 text-xs grid grid-cols-2 gap-2 opacity-80">
             {room.checkInDate && (
                 <div>
                     <div className="text-[10px] uppercase opacity-60 font-semibold">{t.card.in}</div>
@@ -173,8 +173,8 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
 
       {/* Show Upcoming Reservation for Dirty/Available Rooms */}
       {room.upcomingReservation && (room.status === RoomStatus.DIRTY || room.status === RoomStatus.AVAILABLE) && (
-          <div className="mt-auto pt-2 border-t border-black/5">
-              <div className="flex items-center gap-1.5 text-purple-700 bg-purple-50 px-2 py-1 rounded text-[10px] font-bold">
+          <div className="mt-auto pt-2 border-t border-black/5 dark:border-white/10">
+              <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded text-[10px] font-bold">
                   <Calendar className="w-3 h-3" />
                   <span className="truncate flex-1">Next: {formatDate(room.upcomingReservation.checkInDate)}</span>
               </div>

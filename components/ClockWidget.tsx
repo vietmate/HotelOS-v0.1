@@ -28,11 +28,11 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ lang }) => {
   });
 
   return (
-    <div className="w-full bg-slate-50 rounded-xl border border-slate-200 p-4 mb-6 flex flex-col items-center justify-center">
-      <div className="text-4xl font-black text-slate-800 tracking-tighter mb-1 font-mono">
+    <div className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 mb-6 flex flex-col items-center justify-center">
+      <div className="text-4xl font-black text-slate-800 dark:text-slate-100 tracking-tighter mb-1 font-mono">
         {timeStr}
       </div>
-      <div className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase tracking-wider">
+      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
          <Calendar className="w-3 h-3" />
          {dateStr}
       </div>

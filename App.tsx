@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Room, RoomStatus, RoomType, BookingSource } from './types';
+import { Room, RoomStatus, RoomType, BookingSource, Guest } from './types';
 import { RoomCard } from './components/RoomCard';
 import { RoomDetailPanel } from './components/RoomDetailPanel';
 import { OccupancyGauge } from './components/OccupancyGauge';
 import { StatsChart } from './components/StatsChart';
 import { ClockWidget } from './components/ClockWidget';
 import { PettyCashWidget } from './components/PettyCashWidget';
+import { QuickActionsWidget } from './components/QuickActionsWidget';
 import { CalendarView } from './components/CalendarView';
 import { NotesView } from './components/NotesView';
-import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning } from 'lucide-react';
+import { GuestFinder } from './components/GuestFinder';
+import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning, Moon, Sun, X } from 'lucide-react';
 import { translations, Language } from './translations';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 
@@ -76,9 +78,9 @@ const generateInitialRooms = (): Room[] => {
 };
 
 type ViewMode = 'grid' | 'calendar' | 'notes';
-type WidgetId = 'clock' | 'pettyCash' | 'alerts' | 'occupancy' | 'stats';
+type WidgetId = 'quickActions' | 'clock' | 'pettyCash' | 'alerts' | 'occupancy' | 'stats';
 
-const DEFAULT_WIDGET_ORDER: WidgetId[] = ['clock', 'pettyCash', 'alerts', 'occupancy', 'stats'];
+const DEFAULT_WIDGET_ORDER: WidgetId[] = ['quickActions', 'clock', 'pettyCash', 'alerts', 'occupancy', 'stats'];
 
 export default function App() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -93,6 +95,17 @@ export default function App() {
   const [lang, setLang] = useState<Language>('en');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   
+  // Quick Actions State
+  const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
+
+  // Theme State
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+        return localStorage.getItem('hotel_theme') === 'dark' ? 'dark' : 'light';
+    }
+    return 'light';
+  });
+
   // Widget Reordering State
   const [isReordering, setIsReordering] = useState(false);
   const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>(DEFAULT_WIDGET_ORDER);
@@ -101,6 +114,20 @@ export default function App() {
   const dragOverItem = useRef<number | null>(null);
 
   const t = translations[lang];
+
+  // --- Theme Effect ---
+  useEffect(() => {
+    if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('hotel_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+      setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   // --- Supabase Data Fetching & Subscriptions ---
   useEffect(() => {
@@ -243,6 +270,23 @@ export default function App() {
       }
   };
 
+  const handleQuickAction = (action: 'ADD_GUEST' | 'FILTER_AVAILABLE' | 'OPEN_NOTES') => {
+      if (action === 'ADD_GUEST') {
+          setIsGuestModalOpen(true);
+      } else if (action === 'FILTER_AVAILABLE') {
+          setFilter(RoomStatus.AVAILABLE);
+          setViewMode('grid');
+      } else if (action === 'OPEN_NOTES') {
+          setViewMode('notes');
+      }
+  };
+
+  const handleGuestCreated = (guest: Guest) => {
+      setIsGuestModalOpen(false);
+      // Optional: Show toast success
+      alert(`${translations[lang].guest.onboardSuccess}: ${guest.full_name}`);
+  };
+
   // --- Filtering & Stats ---
 
   const filteredRooms = rooms.filter(room => {
@@ -315,7 +359,7 @@ export default function App() {
      if (!hasAlerts) {
          if (isReordering) {
              return (
-                 <div className="mb-6 p-4 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-1">
+                 <div className="mb-6 p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-1">
                      <AlertTriangle className="w-4 h-4 opacity-50" />
                      {t.alerts.placeholder}
                  </div>
@@ -325,27 +369,27 @@ export default function App() {
      }
 
      return (
-        <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl animate-in fade-in slide-in-from-top-4">
-            <h3 className="flex items-center gap-2 text-red-800 font-bold text-sm mb-3">
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/50 rounded-xl animate-in fade-in slide-in-from-top-4">
+            <h3 className="flex items-center gap-2 text-red-800 dark:text-red-400 font-bold text-sm mb-3">
                 <AlertTriangle className="w-4 h-4" /> {t.alerts.title}
             </h3>
             <div className="space-y-2">
                 {alerts.overdue > 0 && (
                     <div className="flex justify-between items-center text-xs">
-                        <span className="text-red-700 font-medium">{t.alerts.overdue}</span>
-                        <span className="bg-red-200 text-red-800 px-2 py-0.5 rounded-full font-bold">{alerts.overdue}</span>
+                        <span className="text-red-700 dark:text-red-300 font-medium">{t.alerts.overdue}</span>
+                        <span className="bg-red-200 dark:bg-red-900 text-red-800 dark:text-red-200 px-2 py-0.5 rounded-full font-bold">{alerts.overdue}</span>
                     </div>
                 )}
                 {alerts.soon > 0 && (
                     <div className="flex justify-between items-center text-xs">
-                        <span className="text-amber-700 font-medium">{t.alerts.checkoutSoon}</span>
-                        <span className="bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-bold">{alerts.soon}</span>
+                        <span className="text-amber-700 dark:text-amber-400 font-medium">{t.alerts.checkoutSoon}</span>
+                        <span className="bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded-full font-bold">{alerts.soon}</span>
                     </div>
                 )}
                 {alerts.missingId > 0 && (
                     <div className="flex justify-between items-center text-xs">
-                        <span className="text-rose-700 font-medium">{t.alerts.kbtttMissing}</span>
-                        <span className="bg-white border border-rose-200 text-rose-800 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                        <span className="text-rose-700 dark:text-rose-400 font-medium">{t.alerts.kbtttMissing}</span>
+                        <span className="bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                             <FileWarning className="w-3 h-3" /> {alerts.missingId}
                         </span>
                     </div>
@@ -357,11 +401,12 @@ export default function App() {
 
   const renderWidgetContent = (id: WidgetId) => {
       switch(id) {
+          case 'quickActions': return <QuickActionsWidget lang={lang} onAction={handleQuickAction} />;
           case 'clock': return <ClockWidget lang={lang} />;
           case 'pettyCash': return <PettyCashWidget lang={lang} />;
           case 'alerts': return renderAlertsWidget();
           case 'occupancy': return <div className="mb-8 flex flex-col items-center"><OccupancyGauge percentage={occupancyPercentage} label={t.occupancy} /></div>;
-          case 'stats': return <div className="mb-8"><h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">{t.roomStatus}</h3><StatsChart rooms={rooms} lang={lang} /></div>;
+          case 'stats': return <div className="mb-8"><h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-4">{t.roomStatus}</h3><StatsChart rooms={rooms} lang={lang} /></div>;
       }
   };
 
@@ -392,7 +437,7 @@ export default function App() {
               />
             ))}
             {filteredRooms.length === 0 && (
-              <div className="col-span-full h-64 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+              <div className="col-span-full h-64 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
                  <Search className="w-8 h-8 mb-2 opacity-50" />
                  <p>{t.noRoomsFound}</p>
               </div>
@@ -403,11 +448,11 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 font-sans">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-200">
       
       {/* Left Sidebar / Stats Area */}
-      <div className="w-80 bg-white border-r border-slate-200 flex flex-col hidden md:flex z-10">
-        <div className="p-6 border-b border-slate-100">
+      <div className="w-80 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col hidden md:flex z-10 transition-colors duration-200">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3 mb-3">
              <div className="bg-indigo-600 p-2 rounded-lg">
                 <Building2 className="text-white w-6 h-6" />
@@ -421,22 +466,22 @@ export default function App() {
                    onBlur={() => handleNameSave(hotelName)}
                    onKeyDown={(e) => e.key === 'Enter' && handleNameSave(hotelName)}
                    autoFocus
-                   className="w-full bg-white border border-indigo-300 rounded px-1 py-0.5 text-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                   className="w-full bg-white dark:bg-slate-800 border border-indigo-300 rounded px-1 py-0.5 text-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                  />
                ) : (
                  <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingName(true)} title="Click to edit hotel name">
-                   <h1 className="text-xl font-bold text-slate-900 tracking-tight truncate">{hotelName}</h1>
+                   <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight truncate">{hotelName}</h1>
                    <Pencil className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-all hover:text-indigo-500" />
                  </div>
                )}
                <div className="flex items-center gap-1">
-                   <p className="text-xs text-slate-500 font-medium">{t.dashboard}</p>
+                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{t.dashboard}</p>
                    {isConnected ? (
-                       <span className="text-[10px] bg-emerald-50 text-emerald-600 border border-emerald-100 px-1.5 py-0.5 rounded flex items-center gap-1.5 font-bold" title="Connected to Supabase Cloud">
+                       <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 px-1.5 py-0.5 rounded flex items-center gap-1.5 font-bold" title="Connected to Supabase Cloud">
                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div> Online
                        </span>
                    ) : (
-                       <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded flex items-center gap-1.5 border border-slate-200" title="Running in offline/local mode">
+                       <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded flex items-center gap-1.5 border border-slate-200 dark:border-slate-700" title="Running in offline/local mode">
                            <WifiOff className="w-3 h-3" /> Offline
                        </span>
                    )}
@@ -445,22 +490,30 @@ export default function App() {
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-                <button onClick={() => setLang('en')} className={`text-xs px-2 py-1 rounded transition-colors ${lang === 'en' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>EN</button>
-                <span className="text-slate-200">|</span>
-                <button onClick={() => setLang('vi')} className={`text-xs px-2 py-1 rounded transition-colors ${lang === 'vi' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>VN</button>
+                <button onClick={() => setLang('en')} className={`text-xs px-2 py-1 rounded transition-colors ${lang === 'en' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>EN</button>
+                <span className="text-slate-200 dark:text-slate-700">|</span>
+                <button onClick={() => setLang('vi')} className={`text-xs px-2 py-1 rounded transition-colors ${lang === 'vi' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>VN</button>
             </div>
-            {/* Edit Layout Button */}
-            <button 
-                onClick={() => setIsReordering(!isReordering)}
-                className={`p-1.5 rounded transition-colors flex items-center gap-1 text-xs font-bold ${isReordering ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:text-slate-600'}`}
-                title={t.customizeLayout}
-            >
-                {isReordering ? <Check className="w-3.5 h-3.5" /> : <Settings2 className="w-3.5 h-3.5" />}
-            </button>
+            <div className="flex items-center gap-1">
+                <button 
+                    onClick={toggleTheme}
+                    className="p-1.5 rounded transition-colors flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                    title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                >
+                    {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                </button>
+                <button 
+                    onClick={() => setIsReordering(!isReordering)}
+                    className={`p-1.5 rounded transition-colors flex items-center gap-1 text-xs font-bold ${isReordering ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'}`}
+                    title={t.customizeLayout}
+                >
+                    {isReordering ? <Check className="w-3.5 h-3.5" /> : <Settings2 className="w-3.5 h-3.5" />}
+                </button>
+            </div>
           </div>
         </div>
 
-        <div className="p-6 flex-1 overflow-y-auto">
+        <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
             {widgetOrder.map((id, index) => (
                 <div 
                     key={id}
@@ -472,7 +525,7 @@ export default function App() {
                     }}
                     onDragOver={(e) => e.preventDefault()}
                     onDragEnd={handleDragEnd}
-                    className={`transition-all duration-300 ease-in-out relative ${isReordering ? 'cursor-move ring-2 ring-indigo-500/20 rounded-xl mb-4 p-2 bg-slate-50 border border-indigo-100' : ''}`}
+                    className={`transition-all duration-300 ease-in-out relative ${isReordering ? 'cursor-move ring-2 ring-indigo-500/20 rounded-xl mb-4 p-2 bg-slate-50 dark:bg-slate-800 border border-indigo-100 dark:border-indigo-900' : ''}`}
                 >
                     {isReordering && (
                         <div className="absolute top-1/2 -left-2 -translate-y-1/2 -translate-x-full text-slate-300">
@@ -484,8 +537,8 @@ export default function App() {
             ))}
         </div>
         
-        <div className="p-4 border-t border-slate-100 text-center">
-          <p className="text-[10px] text-slate-400">v1.2.0 • {t.poweredBy}</p>
+        <div className="p-4 border-t border-slate-100 dark:border-slate-800 text-center">
+          <p className="text-[10px] text-slate-400">v1.3.0 • {t.poweredBy}</p>
         </div>
       </div>
 
@@ -493,16 +546,22 @@ export default function App() {
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         
         {/* Mobile Header */}
-        <div className="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center">
-           <div className="font-bold text-lg flex items-center gap-2">
+        <div className="md:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center">
+           <div className="font-bold text-lg flex items-center gap-2 dark:text-white">
               <Building2 className="text-indigo-600 w-5 h-5" /> {hotelName}
            </div>
            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1 bg-slate-100 rounded p-1">
-                 <button onClick={() => setLang('en')} className={`text-[10px] px-1.5 rounded ${lang === 'en' ? 'bg-white shadow text-indigo-700 font-bold' : 'text-slate-400'}`}>EN</button>
-                 <button onClick={() => setLang('vi')} className={`text-[10px] px-1.5 rounded ${lang === 'vi' ? 'bg-white shadow text-indigo-700 font-bold' : 'text-slate-400'}`}>VN</button>
+               <button 
+                    onClick={toggleTheme}
+                    className="p-1.5 rounded transition-colors text-slate-400 dark:text-slate-300"
+                >
+                    {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded p-1">
+                 <button onClick={() => setLang('en')} className={`text-[10px] px-1.5 rounded ${lang === 'en' ? 'bg-white dark:bg-slate-700 shadow text-indigo-700 dark:text-indigo-300 font-bold' : 'text-slate-400'}`}>EN</button>
+                 <button onClick={() => setLang('vi')} className={`text-[10px] px-1.5 rounded ${lang === 'vi' ? 'bg-white dark:bg-slate-700 shadow text-indigo-700 dark:text-indigo-300 font-bold' : 'text-slate-400'}`}>VN</button>
               </div>
-              <div className="text-sm font-medium text-slate-600">
+              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">
                 {occupiedCount}/{rooms.length}
               </div>
            </div>
@@ -513,29 +572,29 @@ export default function App() {
            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
               <div className="flex items-center gap-4">
                  <div>
-                    <h2 className="text-2xl font-bold text-slate-800">{t.roomOverview}</h2>
-                    <p className="text-slate-500 text-sm">{t.manageBookings}</p>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t.roomOverview}</h2>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">{t.manageBookings}</p>
                  </div>
                  
                  {/* View Switcher Tabs */}
-                 <div className="bg-slate-100 p-1 rounded-lg flex items-center gap-1 ml-0 xl:ml-6">
+                 <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-lg flex items-center gap-1 ml-0 xl:ml-6">
                     <button 
                       onClick={() => setViewMode('grid')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
                       <LayoutGrid className="w-4 h-4" />
                       {t.views.grid}
                     </button>
                     <button 
                       onClick={() => setViewMode('calendar')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'calendar' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
                       <CalendarDays className="w-4 h-4" />
                       {t.views.calendar}
                     </button>
                     <button 
                       onClick={() => setViewMode('notes')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'notes' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'notes' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
                       <NotebookPen className="w-4 h-4" />
                       {t.views.notes}
@@ -552,7 +611,7 @@ export default function App() {
                         placeholder={t.searchPlaceholder}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full sm:w-64 pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        className="w-full sm:w-64 pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:text-white"
                       />
                    </div>
                    
@@ -563,7 +622,7 @@ export default function App() {
                       <select 
                         value={filter} 
                         onChange={(e) => setFilter(e.target.value as RoomStatus | 'ALL')}
-                        className="w-full sm:w-auto pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer"
+                        className="w-full sm:w-auto pl-9 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer dark:text-white"
                       >
                          <option value="ALL">{t.allStatus}</option>
                          {Object.values(RoomStatus).map(s => <option key={s} value={s}>{t.status[s]}</option>)}
@@ -583,7 +642,7 @@ export default function App() {
       {/* Side Panel Overlay */}
       {selectedRoom && (
         <div 
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity"
+          className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-40 transition-opacity"
           onClick={() => setSelectedRoom(null)}
         />
       )}
@@ -595,6 +654,27 @@ export default function App() {
         onUpdate={handleRoomUpdate}
         lang={lang}
       />
+
+      {/* Global Add Guest Modal */}
+      {isGuestModalOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                  <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                      <h3 className="font-bold text-lg dark:text-white">{translations[lang].guest.addNew}</h3>
+                      <button onClick={() => setIsGuestModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+                          <X className="w-5 h-5 text-slate-500" />
+                      </button>
+                  </div>
+                  <div className="p-4">
+                      <GuestFinder 
+                        onSelectGuest={handleGuestCreated} 
+                        lang={lang} 
+                        initialMode="CREATE"
+                      />
+                  </div>
+              </div>
+          </div>
+      )}
 
     </div>
   );

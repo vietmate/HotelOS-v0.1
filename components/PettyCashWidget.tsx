@@ -113,13 +113,13 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
   const activeCurrencies = (Object.entries(balances) as [Currency, number][]).filter(([_, val]) => val !== 0);
 
   return (
-    <div className="mb-6 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+    <div className="mb-6 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
       <div 
         onClick={() => setExpanded(!expanded)}
-        className="p-4 flex items-center justify-between cursor-pointer bg-white hover:bg-slate-50 transition-colors"
+        className="p-4 flex items-center justify-between cursor-pointer bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
       >
-        <div className="flex items-center gap-2 font-bold text-slate-900">
-          <div className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg">
+        <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
+          <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg">
              <Coins className="w-4 h-4" />
           </div>
           {t.pettyCash.title}
@@ -128,12 +128,12 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
       </div>
 
       {!expanded && (
-        <div className="px-4 pb-4 bg-white" onClick={() => setExpanded(true)}>
-             <div className="text-2xl font-mono font-bold text-emerald-600">
+        <div className="px-4 pb-4 bg-white dark:bg-slate-800" onClick={() => setExpanded(true)}>
+             <div className="text-2xl font-mono font-bold text-emerald-600 dark:text-emerald-400">
                 {balances[Currency.VND] ? formatMoney(balances[Currency.VND], Currency.VND) : '0 ₫'}
              </div>
              {activeCurrencies.length > 1 && (
-                 <div className="text-xs text-slate-500 mt-1 font-medium">
+                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
                      + {activeCurrencies.length - 1} other currencies
                  </div>
              )}
@@ -141,15 +141,15 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
       )}
 
       {expanded && (
-        <div className="p-4 border-t border-slate-100 animate-in slide-in-from-top-2">
+        <div className="p-4 border-t border-slate-100 dark:border-slate-700 animate-in slide-in-from-top-2">
             
             <div className="mb-4 space-y-2">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t.pettyCash.balance}</h4>
+                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">{t.pettyCash.balance}</h4>
                 {activeCurrencies.length > 0 ? (
                     activeCurrencies.map(([curr, val]) => (
                         <div key={curr} className="flex justify-between items-center text-sm">
-                            <span className="font-bold text-slate-800">{curr}</span>
-                            <span className={`font-mono font-medium ${val < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                            <span className="font-bold text-slate-800 dark:text-slate-200">{curr}</span>
+                            <span className={`font-mono font-medium ${val < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
                                 {formatMoney(val, curr as Currency)}
                             </span>
                         </div>
@@ -159,19 +159,19 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
                 )}
             </div>
 
-            <div className="mb-4 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t.pettyCash.add}</h4>
+            <div className="mb-4 bg-white dark:bg-slate-700 p-3 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm">
+                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">{t.pettyCash.add}</h4>
                 
-                <div className="flex bg-slate-50 rounded-lg p-1 border border-slate-200 mb-2">
+                <div className="flex bg-slate-50 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-600 mb-2">
                     <button 
                         onClick={() => setType('IN')}
-                        className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-bold rounded-md transition-colors ${type === 'IN' ? 'bg-emerald-100 text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-bold rounded-md transition-colors ${type === 'IN' ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
                     >
                         <ArrowDownCircle className="w-3 h-3" /> {t.pettyCash.income}
                     </button>
                     <button 
                         onClick={() => setType('OUT')}
-                        className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-bold rounded-md transition-colors ${type === 'OUT' ? 'bg-rose-100 text-rose-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-bold rounded-md transition-colors ${type === 'OUT' ? 'bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
                     >
                         <ArrowUpCircle className="w-3 h-3" /> {t.pettyCash.expense}
                     </button>
@@ -184,12 +184,12 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
                             placeholder="0"
-                            className="w-2/3 p-2 border border-slate-300 rounded text-sm focus:outline-none focus:border-indigo-500 font-mono bg-white text-slate-900 placeholder-slate-400"
+                            className="w-2/3 p-2 border border-slate-300 dark:border-slate-600 rounded text-sm focus:outline-none focus:border-indigo-500 font-mono bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400"
                          />
                          <select 
                             value={currency}
                             onChange={(e) => setCurrency(e.target.value as Currency)}
-                            className="w-1/3 p-2 border border-slate-300 rounded text-xs font-bold focus:outline-none focus:border-indigo-500 bg-white text-slate-900"
+                            className="w-1/3 p-2 border border-slate-300 dark:border-slate-600 rounded text-xs font-bold focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                          >
                              {Object.values(Currency).map(c => <option key={c} value={c}>{c}</option>)}
                          </select>
@@ -199,7 +199,7 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         placeholder={t.pettyCash.descPlaceholder}
-                        className="w-full p-2 border border-slate-300 rounded text-sm focus:outline-none focus:border-indigo-500 bg-white text-slate-900 placeholder-slate-400"
+                        className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded text-sm focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400"
                     />
                     <button 
                         onClick={handleAdd}
@@ -214,29 +214,29 @@ export const PettyCashWidget: React.FC<PettyCashWidgetProps> = ({ lang }) => {
             </div>
 
             <div>
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
                     <History className="w-3 h-3" /> {t.pettyCash.history}
                 </h4>
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
                     {transactions.length === 0 && <p className="text-xs text-slate-400 italic text-center py-2">{t.pettyCash.empty}</p>}
                     {transactions.slice(0, 5).map(tx => (
-                        <div key={tx.id} className="text-xs border-b border-slate-100 pb-2 last:border-0 group relative">
+                        <div key={tx.id} className="text-xs border-b border-slate-100 dark:border-slate-700 pb-2 last:border-0 group relative">
                              <div className="flex justify-between font-medium items-center mb-0.5">
-                                 <span className="text-slate-900 truncate max-w-[100px]" title={tx.description}>{tx.description}</span>
+                                 <span className="text-slate-900 dark:text-slate-200 truncate max-w-[100px]" title={tx.description}>{tx.description}</span>
                                  <div className="flex items-center gap-2">
-                                     <span className={`whitespace-nowrap font-mono font-bold ${tx.type === 'IN' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                     <span className={`whitespace-nowrap font-mono font-bold ${tx.type === 'IN' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                          {tx.type === 'IN' ? '+' : '-'} {formatMoney(tx.amount, tx.currency)}
                                      </span>
                                      <button 
                                         onClick={(e) => handleDelete(tx.id, e)}
-                                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-rose-100 text-rose-500 rounded transition-all"
+                                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-rose-100 dark:hover:bg-rose-900 text-rose-500 rounded transition-all"
                                         title={t.pettyCash.delete}
                                      >
                                          <Trash2 className="w-3 h-3" />
                                      </button>
                                  </div>
                              </div>
-                             <div className="text-[10px] text-slate-500">
+                             <div className="text-[10px] text-slate-500 dark:text-slate-400">
                                  {new Date(tx.date).toLocaleDateString()} {new Date(tx.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                              </div>
                         </div>
