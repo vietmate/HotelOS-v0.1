@@ -1,0 +1,238 @@
+import React, { useState } from 'react';
+import { Room, RoomStatus } from '../types';
+import { translations, Language } from '../translations';
+import { Users, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+
+interface CalendarViewProps {
+  rooms: Room[];
+  onRoomClick: (room: Room) => void;
+  lang: Language;
+}
+
+export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, lang }) => {
+  const t = translations[lang];
+  const [startDate, setStartDate] = useState(new Date());
+
+  // Generate 14 days based on startDate
+  const dates = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  const getDateString = (date: Date) => {
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const y = date.getFullYear();
+    return `${y}-${m}-${d}`;
+  };
+
+  const isSameDay = (d1: Date, dateStr?: string) => {
+    if (!dateStr) return false;
+    return getDateString(d1) === dateStr;
+  };
+
+  const isBetween = (checkDate: Date, startStr?: string, endStr?: string) => {
+    if (!startStr || !endStr) return false;
+    const check = getDateString(checkDate);
+    return check >= startStr && check <= endStr;
+  };
+
+  const handlePrev = () => {
+    const newDate = new Date(startDate);
+    newDate.setDate(newDate.getDate() - 14);
+    setStartDate(newDate);
+  };
+
+  const handleNext = () => {
+    const newDate = new Date(startDate);
+    newDate.setDate(newDate.getDate() + 14);
+    setStartDate(newDate);
+  };
+
+  const handleToday = () => {
+    setStartDate(new Date());
+  };
+
+  const handleDateInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.value) {
+      setStartDate(new Date(e.target.value));
+    }
+  };
+
+  const getStatusColor = (status: RoomStatus) => {
+    switch (status) {
+        case RoomStatus.OCCUPIED: return 'bg-blue-500 border-blue-600 text-white';
+        case RoomStatus.RESERVED: return 'bg-purple-500 border-purple-600 text-white';
+        case RoomStatus.MAINTENANCE: return 'bg-rose-500 border-rose-600 text-white';
+        case RoomStatus.DIRTY: return 'bg-amber-400 border-amber-500 text-white';
+        default: return 'bg-slate-100';
+    }
+  };
+
+  const getCellContent = (room: Room, date: Date) => {
+    const isToday = isSameDay(date, getDateString(new Date()));
+
+    // 1. Check for Active Occupancy/Reservation (Current State)
+    if ((room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && 
+        isBetween(date, room.checkInDate, room.checkOutDate)) {
+        
+        const isStart = isSameDay(date, room.checkInDate);
+        return (
+            <div 
+                className={`h-8 mx-1 rounded-md text-[10px] flex items-center justify-center font-medium shadow-sm truncate px-1 cursor-pointer transition-transform hover:scale-105 ${getStatusColor(room.status)}`}
+                title={`${room.guestName || t.status[room.status]} (${room.checkInDate} - ${room.checkOutDate})`}
+            >
+                {isStart || date.getDay() === 0 || date.getDate() === 1 ? (room.guestName || t.status[room.status]) : ''}
+            </div>
+        );
+    }
+    
+    // 2. Check for Upcoming Reservation (Future State, overlaying other statuses except Occupied)
+    // This allows a DIRTY room to show a future reservation bar
+    if (room.upcomingReservation && isBetween(date, room.upcomingReservation.checkInDate, room.upcomingReservation.checkOutDate)) {
+        const isStart = isSameDay(date, room.upcomingReservation.checkInDate);
+        return (
+            <div 
+                className={`h-8 mx-1 rounded-md text-[10px] flex items-center justify-center font-medium shadow-sm truncate px-1 cursor-pointer transition-transform hover:scale-105 bg-purple-500 border-purple-600 text-white`}
+                title={`${room.upcomingReservation.guestName} (Reserved)`}
+            >
+                {isStart || date.getDay() === 0 || date.getDate() === 1 ? room.upcomingReservation.guestName : ''}
+            </div>
+        );
+    }
+
+    // 3. Check maintenance - Show across all days
+    if (room.status === RoomStatus.MAINTENANCE) {
+        return (
+            <div className={`h-8 mx-1 rounded-md bg-rose-100 border border-rose-200 flex items-center justify-center`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+            </div>
+        );
+    }
+
+    // 4. Check Dirty - Show only today (historical dirty status isn't usually tracked in simple views)
+    if (room.status === RoomStatus.DIRTY && isToday) {
+         return (
+            <div className={`h-8 mx-1 rounded-md bg-amber-100 border border-amber-200 flex items-center justify-center`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            </div>
+        );
+    }
+
+    // 5. Check Available - Show only today
+    if (room.status === RoomStatus.AVAILABLE && isToday) {
+        return (
+           <div className={`h-8 mx-1 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center text-[10px] font-bold shadow-sm`}>
+               {lang === 'vi' ? 'Trống' : 'Free'}
+           </div>
+       );
+    }
+
+    return null;
+  };
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
+      
+      {/* Calendar Toolbar */}
+      <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-50">
+        <div className="flex items-center gap-2">
+            <button 
+                onClick={handlePrev}
+                className="p-1.5 bg-white border border-slate-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-colors"
+                title={t.calendar.prev}
+            >
+                <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button 
+                onClick={handleToday}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-colors"
+            >
+                {t.calendar.today}
+            </button>
+            <button 
+                onClick={handleNext}
+                className="p-1.5 bg-white border border-slate-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-colors"
+                title={t.calendar.next}
+            >
+                <ChevronRight className="w-5 h-5" />
+            </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+            <CalendarIcon className="w-4 h-4 text-slate-400" />
+            <input 
+                type="date" 
+                value={getDateString(startDate)}
+                onChange={handleDateInput}
+                className="text-sm font-bold bg-white border border-slate-200 rounded-lg py-1 px-2 focus:outline-none focus:border-indigo-500 text-slate-700"
+            />
+        </div>
+      </div>
+
+      {/* Scrollable Container */}
+      <div className="overflow-auto flex-1">
+        <div className="min-w-[1000px]">
+          {/* Header Row */}
+          <div className="flex border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
+            <div className="w-32 p-3 font-bold text-xs text-slate-500 uppercase tracking-wider sticky left-0 bg-slate-50 border-r border-slate-200 z-20 shadow-sm">
+                Room
+            </div>
+            {dates.map(date => {
+                const isToday = isSameDay(date, getDateString(new Date()));
+                return (
+                    <div key={date.toISOString()} className={`flex-1 min-w-[80px] p-2 text-center border-r border-slate-100 ${isToday ? 'bg-indigo-50/50' : ''}`}>
+                        <div className={`text-[10px] font-bold uppercase mb-1 ${isToday ? 'text-indigo-600' : 'text-slate-400'}`}>
+                            {date.toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', { weekday: 'short' })}
+                        </div>
+                        <div className={`text-sm font-bold ${isToday ? 'text-indigo-700' : 'text-slate-700'}`}>
+                            {date.getDate()}
+                        </div>
+                        {/* Month Indicator if 1st of month */}
+                        {date.getDate() === 1 && (
+                            <div className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">
+                                {date.toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', { month: 'short' })}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+          </div>
+
+          {/* Room Rows */}
+          {rooms.map(room => (
+            <div key={room.id} className="flex border-b border-slate-100 hover:bg-slate-50 transition-colors group">
+                {/* Room Label (Sticky) */}
+                <div 
+                    onClick={() => onRoomClick(room)}
+                    className="w-32 p-3 border-r border-slate-200 sticky left-0 bg-white group-hover:bg-slate-50 z-10 cursor-pointer"
+                >
+                    <div className="font-bold text-slate-800 text-sm">{room.name || room.number}</div>
+                    <div className="flex items-center gap-1 text-[10px] text-slate-500">
+                        <span>{t.roomType[room.type]}</span>
+                        <span>•</span>
+                        <span className="flex items-center"><Users className="w-3 h-3" /> {room.capacity}</span>
+                    </div>
+                </div>
+
+                {/* Date Cells */}
+                {dates.map(date => {
+                     const isToday = isSameDay(date, getDateString(new Date()));
+                     return (
+                        <div 
+                            key={`${room.id}-${date.toISOString()}`} 
+                            onClick={() => onRoomClick(room)}
+                            className={`flex-1 min-w-[80px] p-1 border-r border-slate-100 relative cursor-pointer ${isToday ? 'bg-indigo-50/20' : ''}`}
+                        >
+                            {getCellContent(room, date)}
+                        </div>
+                     );
+                })}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};

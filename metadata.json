@@ -1,0 +1,5 @@
+{
+  "name": "HotelOS - Lakeside House Hanoi",
+  "description": "A streamlined hotel management interface for a 15-room boutique hotel, featuring real-time room status, check-in/out workflows, and AI-powered guest assistance.",
+  "requestFramePermissions": []
+}

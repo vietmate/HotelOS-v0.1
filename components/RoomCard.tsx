@@ -1,0 +1,205 @@
+import React from 'react';
+import { Room, RoomStatus, RoomType } from '../types';
+import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, AlertTriangle, Calendar, CheckSquare, Square, FileCheck, DollarSign } from 'lucide-react';
+import { translations, Language } from '../translations';
+
+interface RoomCardProps {
+  room: Room;
+  onClick: (room: Room) => void;
+  lang: Language;
+}
+
+const getStatusColor = (status: RoomStatus, checkoutStatus: 'none' | 'soon' | 'overdue') => {
+  if (checkoutStatus === 'overdue') return 'bg-white border-rose-500 text-rose-700 ring-2 ring-rose-200 ring-offset-1';
+  if (checkoutStatus === 'soon') return 'bg-white border-amber-500 text-amber-700 ring-2 ring-amber-200 ring-offset-1';
+
+  switch (status) {
+    case RoomStatus.AVAILABLE: return 'bg-emerald-50 border-emerald-200 text-emerald-700';
+    case RoomStatus.OCCUPIED: return 'bg-blue-50 border-blue-200 text-blue-700';
+    case RoomStatus.DIRTY: return 'bg-amber-50 border-amber-200 text-amber-700';
+    case RoomStatus.MAINTENANCE: return 'bg-rose-50 border-rose-200 text-rose-700';
+    case RoomStatus.RESERVED: return 'bg-purple-50 border-purple-200 text-purple-700';
+    default: return 'bg-slate-50 border-slate-200 text-slate-700';
+  }
+};
+
+const getStatusIcon = (status: RoomStatus) => {
+  switch (status) {
+    case RoomStatus.AVAILABLE: return <BedDouble className="w-5 h-5" />;
+    case RoomStatus.OCCUPIED: return <User className="w-5 h-5" />;
+    case RoomStatus.DIRTY: return <SprayCan className="w-5 h-5" />;
+    case RoomStatus.MAINTENANCE: return <Wrench className="w-5 h-5" />;
+    case RoomStatus.RESERVED: return <CalendarCheck className="w-5 h-5" />;
+  }
+};
+
+const formatDate = (dateStr: string) => {
+    try {
+        if (dateStr.includes('-')) {
+            const [year, month, day] = dateStr.split('-');
+            const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch (e) {
+        return dateStr;
+    }
+}
+
+const formatPriceShort = (price: number) => {
+    if (price >= 1000000) {
+        return `${(price / 1000000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`;
+    }
+    if (price >= 1000) {
+        return `${(price / 1000).toLocaleString(undefined, { maximumFractionDigits: 0 })}k`;
+    }
+    return price.toString();
+}
+
+export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
+  const t = translations[lang];
+  const showDates = (room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && (room.checkInDate || room.checkOutDate);
+
+  // Determine Checkout Status
+  let checkoutStatus: 'none' | 'soon' | 'overdue' = 'none';
+  if (room.status === RoomStatus.OCCUPIED && room.checkOutDate) {
+      const now = new Date();
+      const [y, m, d] = room.checkOutDate.split('-').map(Number);
+      const checkout = new Date(y, m - 1, d);
+      
+      if (room.checkOutTime) {
+          const [h, min] = room.checkOutTime.split(':').map(Number);
+          checkout.setHours(h, min, 0, 0);
+      } else {
+          checkout.setHours(12, 0, 0, 0); // Default 12 PM
+      }
+
+      const diffMins = (checkout.getTime() - now.getTime()) / (1000 * 60);
+      
+      if (diffMins < 0) checkoutStatus = 'overdue';
+      else if (diffMins < 120) checkoutStatus = 'soon'; // 2 Hours warning
+  }
+
+  return (
+    <div 
+      onClick={() => onClick(room)}
+      className={`
+        relative p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 ease-in-out
+        hover:shadow-xl hover:scale-[1.03] group flex flex-col
+        ${getStatusColor(room.status, checkoutStatus)}
+      `}
+    >
+      <div className="flex justify-between items-start mb-2">
+        <span className="text-xl font-bold truncate pr-2" title={room.name || room.number}>
+          {room.name || room.number}
+        </span>
+        <div className="opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0">
+            {getStatusIcon(room.status)}
+        </div>
+      </div>
+      
+      <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-1.5 text-xs font-medium opacity-80 uppercase tracking-wider">
+            <span>{t.roomType[room.type] || room.type}</span>
+            <span className="w-1 h-1 rounded-full bg-current opacity-50"></span>
+            <span className="flex items-center gap-0.5" title={`${t.card.capacity}: ${room.capacity}`}>
+            <Users className="w-3 h-3" /> {room.capacity}
+            </span>
+          </div>
+          
+          {/* Sale Price Badge */}
+          {room.salePrice && room.status === RoomStatus.OCCUPIED && (
+              <div className="bg-white/80 px-2 py-1 rounded-md text-xs font-bold shadow-sm border border-current/10 flex items-center gap-1" title={`${room.salePrice.toLocaleString()} VND`}>
+                  <DollarSign className="w-3.5 h-3.5 opacity-80" />
+                  <span className="text-sm font-extrabold">{formatPriceShort(room.salePrice)}</span>
+                  <span className="text-[10px] opacity-70">VND</span>
+              </div>
+          )}
+      </div>
+
+      <div className="text-sm truncate min-h-[20px] mb-2">
+        {room.status === RoomStatus.OCCUPIED && room.guestName ? (
+          <>
+              <div className="flex items-center justify-between">
+                  <span className="font-semibold block truncate flex-1">{room.guestName}</span>
+              </div>
+              <div className="flex gap-2 mt-1">
+                {room.bookingSource && (
+                    <span className="text-[10px] bg-white/50 border border-current/20 px-1.5 py-0.5 rounded-md inline-block font-medium opacity-80">
+                        {t.sources[room.bookingSource]}
+                    </span>
+                )}
+                {/* KBTTT Indicator */}
+                <div 
+                    className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md font-bold border
+                    ${room.isIdScanned 
+                        ? 'bg-emerald-100/50 text-emerald-800 border-emerald-200/50' 
+                        : 'bg-rose-100/80 text-rose-800 border-rose-200'}`}
+                    title={room.isIdScanned ? t.card.kbtttOk : t.card.kbtttMissing}
+                >
+                    {room.isIdScanned ? <FileCheck className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                    <span>{room.isIdScanned ? t.card.kbtttOk : t.card.kbtttMissing}</span>
+                </div>
+              </div>
+          </>
+        ) : (
+          <span className="opacity-60">{t.status[room.status]}</span>
+        )}
+      </div>
+
+      {showDates && (
+        <div className="mt-auto pt-3 border-t border-black/5 text-xs grid grid-cols-2 gap-2 opacity-80">
+            {room.checkInDate && (
+                <div>
+                    <div className="text-[10px] uppercase opacity-60 font-semibold">{t.card.in}</div>
+                    <div className="font-mono font-medium leading-tight">
+                        {formatDate(room.checkInDate)}
+                        {room.isHourly && room.checkInTime && <span className="block text-[10px] opacity-75">{room.checkInTime}</span>}
+                    </div>
+                </div>
+            )}
+            {room.checkOutDate && (
+                <div>
+                    <div className="text-[10px] uppercase opacity-60 font-semibold">{t.card.out}</div>
+                    <div className="font-mono font-medium leading-tight">
+                        {formatDate(room.checkOutDate)}
+                         {room.isHourly && room.checkOutTime && <span className="block text-[10px] opacity-75">{room.checkOutTime}</span>}
+                    </div>
+                </div>
+            )}
+        </div>
+      )}
+
+      {/* Show Upcoming Reservation for Dirty/Available Rooms */}
+      {room.upcomingReservation && (room.status === RoomStatus.DIRTY || room.status === RoomStatus.AVAILABLE) && (
+          <div className="mt-auto pt-2 border-t border-black/5">
+              <div className="flex items-center gap-1.5 text-purple-700 bg-purple-50 px-2 py-1 rounded text-[10px] font-bold">
+                  <Calendar className="w-3 h-3" />
+                  <span className="truncate flex-1">Next: {formatDate(room.upcomingReservation.checkInDate)}</span>
+              </div>
+          </div>
+      )}
+
+      {/* Checkout Alert Badge */}
+      {checkoutStatus !== 'none' && (
+          <div className={`
+              absolute -top-2 -right-2 px-2 py-1 rounded-full text-[10px] font-bold shadow-sm border flex items-center gap-1
+              ${checkoutStatus === 'overdue' ? 'bg-rose-600 text-white border-rose-700 animate-pulse' : 'bg-amber-400 text-amber-900 border-amber-500'}
+          `}>
+              {checkoutStatus === 'overdue' ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+              {checkoutStatus === 'overdue' ? t.card.overdue : t.card.checkoutSoon}
+          </div>
+      )}
+
+      {room.status === RoomStatus.DIRTY && (
+        <div className="absolute bottom-2 right-2">
+           <span className="flex h-3 w-3 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
