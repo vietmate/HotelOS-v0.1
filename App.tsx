@@ -11,23 +11,10 @@ import { NotesView } from './components/NotesView';
 import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical } from 'lucide-react';
 import { translations, Language } from './translations';
 
-const INITIAL_ROOMS: Room[] = Array.from({ length: 15 }, (_, i) => {
-  const isSuite = (i + 1) % 5 === 0;
-  const isDouble = i % 2 === 0;
-  const type = isSuite ? RoomType.SUITE : (isDouble ? RoomType.DOUBLE : RoomType.SINGLE);
-  
-  // Logic to determine initial status
-  let status = Math.random() > 0.7 ? RoomStatus.OCCUPIED : (Math.random() > 0.8 ? RoomStatus.DIRTY : RoomStatus.AVAILABLE);
-  
-  // Explicitly make Room 3 Dirty but with a reservation for demonstration
-  if (i === 2) {
-    status = RoomStatus.DIRTY;
-  }
+const STORAGE_KEY_ROOMS = 'hotel_os_rooms_data';
+const STORAGE_KEY_HOTEL_NAME = 'hotel_os_name';
 
-  const sources = [BookingSource.BOOKING_COM, BookingSource.AGODA, BookingSource.G2J, BookingSource.WALK_IN];
-  const source = (status === RoomStatus.OCCUPIED) ? sources[Math.floor(Math.random() * sources.length)] : undefined;
-  
-  // Date Helpers
+const generateInitialRooms = (): Room[] => {
   const today = new Date();
   const yesterday = new Date(today); 
   yesterday.setDate(today.getDate() - 1);
@@ -42,54 +29,71 @@ const INITIAL_ROOMS: Room[] = Array.from({ length: 15 }, (_, i) => {
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   };
-  
-  // Randomly make some guests check out today for the alert demo
-  const isCheckingOutToday = Math.random() > 0.6;
-  const stayDuration = isCheckingOutToday ? 1 : (Math.floor(Math.random() * 3) + 2); 
-  const checkOut = new Date(yesterday);
-  checkOut.setDate(yesterday.getDate() + stayDuration);
 
-  // KBTTT / ID Scanned randomization for occupied rooms (80% chance true)
-  const isIdScanned = status === RoomStatus.OCCUPIED ? Math.random() > 0.2 : undefined;
+  return Array.from({ length: 15 }, (_, i) => {
+    const isSuite = (i + 1) % 5 === 0;
+    const isDouble = i % 2 === 0;
+    const type = isSuite ? RoomType.SUITE : (isDouble ? RoomType.DOUBLE : RoomType.SINGLE);
+    
+    // Logic to determine initial status
+    let status = Math.random() > 0.7 ? RoomStatus.OCCUPIED : (Math.random() > 0.8 ? RoomStatus.DIRTY : RoomStatus.AVAILABLE);
+    
+    // Explicitly make Room 3 Dirty but with a reservation for demonstration
+    if (i === 2) {
+      status = RoomStatus.DIRTY;
+    }
 
-  // Initial Price Logic
-  const basePrice = isSuite ? 1200000 : (isDouble ? 600000 : 400000); // Rough VND prices
-  let salePrice = undefined;
-  if (status === RoomStatus.OCCUPIED) {
-      // Simulate some variance in sale price
-      salePrice = basePrice * (Math.random() > 0.5 ? 1 : 0.9); 
-  }
+    const sources = [BookingSource.BOOKING_COM, BookingSource.AGODA, BookingSource.G2J, BookingSource.WALK_IN];
+    const source = (status === RoomStatus.OCCUPIED) ? sources[Math.floor(Math.random() * sources.length)] : undefined;
+    
+    // Randomly make some guests check out today for the alert demo
+    const isCheckingOutToday = Math.random() > 0.6;
+    const stayDuration = isCheckingOutToday ? 1 : (Math.floor(Math.random() * 3) + 2); 
+    const checkOut = new Date(yesterday);
+    checkOut.setDate(yesterday.getDate() + stayDuration);
 
-  // Create base room
-  const room: Room = {
-    id: `room-${i + 1}`,
-    number: `${100 + i + 1}`,
-    name: isSuite ? `Suite ${100 + i + 1}` : undefined,
-    capacity: isSuite ? 4 : (isDouble ? 2 : 1),
-    type: type,
-    status: status,
-    price: basePrice,
-    salePrice: salePrice,
-    guestName: status === RoomStatus.OCCUPIED ? "John Doe" : undefined,
-    checkInDate: status === RoomStatus.OCCUPIED ? formatDate(yesterday) : undefined,
-    checkOutDate: status === RoomStatus.OCCUPIED ? formatDate(checkOut) : undefined,
-    bookingSource: source,
-    isIdScanned: isIdScanned,
-  };
+    // KBTTT / ID Scanned randomization for occupied rooms (80% chance true)
+    const isIdScanned = status === RoomStatus.OCCUPIED ? Math.random() > 0.2 : undefined;
 
-  // Add an upcoming reservation to the specific dirty room (Room 3)
-  if (i === 2) {
-    room.upcomingReservation = {
-      id: `res-${i}`,
-      guestName: "Alice Wonderland",
-      checkInDate: formatDate(tomorrow),
-      checkOutDate: formatDate(dayAfter),
-      source: BookingSource.BOOKING_COM
+    // Initial Price Logic
+    const basePrice = isSuite ? 1200000 : (isDouble ? 600000 : 400000); // Rough VND prices
+    let salePrice = undefined;
+    if (status === RoomStatus.OCCUPIED) {
+        // Simulate some variance in sale price
+        salePrice = basePrice * (Math.random() > 0.5 ? 1 : 0.9); 
+    }
+
+    // Create base room
+    const room: Room = {
+      id: `room-${i + 1}`,
+      number: `${100 + i + 1}`,
+      name: isSuite ? `Suite ${100 + i + 1}` : undefined,
+      capacity: isSuite ? 4 : (isDouble ? 2 : 1),
+      type: type,
+      status: status,
+      price: basePrice,
+      salePrice: salePrice,
+      guestName: status === RoomStatus.OCCUPIED ? "John Doe" : undefined,
+      checkInDate: status === RoomStatus.OCCUPIED ? formatDate(yesterday) : undefined,
+      checkOutDate: status === RoomStatus.OCCUPIED ? formatDate(checkOut) : undefined,
+      bookingSource: source,
+      isIdScanned: isIdScanned,
     };
-  }
 
-  return room;
-});
+    // Add an upcoming reservation to the specific dirty room (Room 3)
+    if (i === 2) {
+      room.upcomingReservation = {
+        id: `res-${i}`,
+        guestName: "Alice Wonderland",
+        checkInDate: formatDate(tomorrow),
+        checkOutDate: formatDate(dayAfter),
+        source: BookingSource.BOOKING_COM
+      };
+    }
+
+    return room;
+  });
+};
 
 type ViewMode = 'grid' | 'calendar' | 'notes';
 type WidgetId = 'clock' | 'pettyCash' | 'alerts' | 'occupancy' | 'stats';
@@ -97,11 +101,25 @@ type WidgetId = 'clock' | 'pettyCash' | 'alerts' | 'occupancy' | 'stats';
 const DEFAULT_WIDGET_ORDER: WidgetId[] = ['clock', 'pettyCash', 'alerts', 'occupancy', 'stats'];
 
 export default function App() {
-  const [rooms, setRooms] = useState<Room[]>(INITIAL_ROOMS);
+  const [rooms, setRooms] = useState<Room[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_ROOMS);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse rooms from storage", e);
+      }
+    }
+    return generateInitialRooms();
+  });
+
+  const [hotelName, setHotelName] = useState(() => {
+    return localStorage.getItem(STORAGE_KEY_HOTEL_NAME) || 'HotelOS';
+  });
+
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [filter, setFilter] = useState<RoomStatus | 'ALL'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  const [hotelName, setHotelName] = useState('HotelOS');
   const [isEditingName, setIsEditingName] = useState(false);
   const [lang, setLang] = useState<Language>('en');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -126,6 +144,15 @@ export default function App() {
   const dragOverItem = useRef<number | null>(null);
 
   const t = translations[lang];
+
+  // Persistence Effects
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_ROOMS, JSON.stringify(rooms));
+  }, [rooms]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_HOTEL_NAME, hotelName);
+  }, [hotelName]);
 
   const handleRoomUpdate = (updatedRoom: Room) => {
     setRooms(prevRooms => prevRooms.map(r => r.id === updatedRoom.id ? updatedRoom : r));
