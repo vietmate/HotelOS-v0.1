@@ -60,6 +60,7 @@ export interface Room {
   bookingSource?: BookingSource;
   upcomingReservation?: Reservation;
   isIdScanned?: boolean; // KBTTT Compliance
+  icalUrl?: string; // Booking.com Calendar Link
 }
 
 export interface OccupancyData {
@@ -88,4 +89,24 @@ export interface CashTransaction {
   description: string;
   date: string; // ISO string
   type: 'IN' | 'OUT';
+}
+
+export type EmployeeRole = 'Reception' | 'Housekeeping' | 'Manager' | 'Maintenance' | 'Security';
+
+export interface Employee {
+  id: string;
+  name: string;
+  role: EmployeeRole;
+  phone?: string;
+  hourlyRate?: number; // In VND
+  isWorking?: boolean; // Currently clocked in?
+}
+
+export interface TimeEntry {
+  id: string;
+  employeeId: string;
+  clockIn: string; // ISO String
+  clockOut?: string; // ISO String
+  totalPay?: number; // Calculated on clock out
+  notes?: string;
 }

@@ -20,7 +20,8 @@ export const translations = {
     views: {
       grid: "Dashboard",
       calendar: "Calendar",
-      notes: "Notes"
+      notes: "Notes",
+      employees: "Staff & Shifts"
     },
     notes: {
       title: "Shift Handover Notes",
@@ -70,7 +71,10 @@ export const translations = {
       checkOutBtn: "Check Out",
       kbtttLabel: "KBTTT Declaration (ID Scan)",
       kbtttDesc: "Guest ID/Passport scanned & recorded",
-      salePrice: "Sale Price (VND)"
+      salePrice: "Sale Price (VND)",
+      icalLabel: "Booking.com Calendar Link (iCal)",
+      syncIcal: "Sync Calendar",
+      syncing: "Syncing..."
     },
     card: {
         in: "In",
@@ -127,6 +131,25 @@ export const translations = {
       addGuest: "Add Client",
       filterAvailable: "Show Available",
       openNotes: "Daily Notes"
+    },
+    employees: {
+      title: "Staff Management",
+      addEmployee: "Add Staff",
+      name: "Name",
+      role: "Role",
+      rate: "Hourly Rate (VND)",
+      clockIn: "Clock In",
+      clockOut: "Clock Out",
+      working: "Working Now",
+      offline: "Off Duty",
+      history: "Shift History",
+      duration: "Duration",
+      totalPay: "Est. Pay",
+      confirmClockOut: "Confirm clock out for",
+      save: "Save Staff",
+      cancel: "Cancel",
+      hrs: "hrs",
+      mins: "mins"
     }
   },
   vi: {
@@ -145,7 +168,8 @@ export const translations = {
     views: {
       grid: "Lưới",
       calendar: "Lịch biểu",
-      notes: "Ghi chú"
+      notes: "Ghi chú",
+      employees: "Nhân viên & Ca"
     },
     notes: {
       title: "Ghi chú giao ca",
@@ -195,7 +219,10 @@ export const translations = {
       checkOutBtn: "Trả phòng",
       kbtttLabel: "Khai báo tạm trú (KBTTT)",
       kbtttDesc: "Đã quét CCCD/Hộ chiếu khách",
-      salePrice: "Giá bán (VND)"
+      salePrice: "Giá bán (VND)",
+      icalLabel: "Liên kết Lịch Booking.com (iCal)",
+      syncIcal: "Đồng bộ Lịch",
+      syncing: "Đang đồng bộ..."
     },
     card: {
         in: "Vào",
@@ -234,7 +261,7 @@ export const translations = {
     guest: {
         findTitle: "Tìm hoặc Thêm Khách",
         searchPlaceholder: "Tìm theo tên hoặc SĐT...",
-        addNew: "Thêm Khách Mới",
+        addNew: "Add New Guest",
         select: "Chọn",
         fullName: "Họ và Tên",
         idNumber: "CMND / CCCD / Hộ chiếu",
@@ -252,6 +279,25 @@ export const translations = {
       addGuest: "Thêm Khách",
       filterAvailable: "Tìm Phòng Trống",
       openNotes: "Sổ Giao Ca"
+    },
+    employees: {
+      title: "Quản Lý Nhân Sự",
+      addEmployee: "Thêm Nhân Viên",
+      name: "Tên",
+      role: "Vị Trí",
+      rate: "Lương/Giờ (VND)",
+      clockIn: "Vào Ca",
+      clockOut: "Tan Ca",
+      working: "Đang làm",
+      offline: "Đã về",
+      history: "Lịch Sử Ca Làm",
+      duration: "Thời gian",
+      totalPay: "Lương (Ước tính)",
+      confirmClockOut: "Xác nhận tan ca cho",
+      save: "Lưu",
+      cancel: "Hủy",
+      hrs: "giờ",
+      mins: "phút"
     }
   }
 };

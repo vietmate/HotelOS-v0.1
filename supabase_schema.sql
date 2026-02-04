@@ -1,3 +1,4 @@
+
 -- Run this in your Supabase SQL Editor
 
 -- 1. Table for Rooms (Stores full room object as JSON)
@@ -27,6 +28,20 @@ create table if not exists app_settings (
   value jsonb
 );
 
+-- 5. Table for Employees
+create table if not exists employees (
+  id text primary key,
+  data jsonb not null,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- 6. Table for Time Entries (Clock In/Out)
+create table if not exists time_entries (
+  id text primary key,
+  data jsonb not null,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
 -- Enable Realtime for these tables so all devices sync instantly
 -- We use a DO block to prevent errors if the tables are already in the publication
 do $$
@@ -45,6 +60,14 @@ begin
 
   if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'app_settings') then
     alter publication supabase_realtime add table app_settings;
+  end if;
+  
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'employees') then
+    alter publication supabase_realtime add table employees;
+  end if;
+
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'time_entries') then
+    alter publication supabase_realtime add table time_entries;
   end if;
 end;
 $$;
@@ -79,5 +102,21 @@ do $$
 begin
   if not exists (select 1 from pg_policies where tablename = 'app_settings' and policyname = 'Allow all access') then
     create policy "Allow all access" on app_settings for all using (true) with check (true);
+  end if;
+end $$;
+
+alter table employees enable row level security;
+do $$
+begin
+  if not exists (select 1 from pg_policies where tablename = 'employees' and policyname = 'Allow all access') then
+    create policy "Allow all access" on employees for all using (true) with check (true);
+  end if;
+end $$;
+
+alter table time_entries enable row level security;
+do $$
+begin
+  if not exists (select 1 from pg_policies where tablename = 'time_entries' and policyname = 'Allow all access') then
+    create policy "Allow all access" on time_entries for all using (true) with check (true);
   end if;
 end $$;

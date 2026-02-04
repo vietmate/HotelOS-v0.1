@@ -10,7 +10,8 @@ import { QuickActionsWidget } from './components/QuickActionsWidget';
 import { CalendarView } from './components/CalendarView';
 import { NotesView } from './components/NotesView';
 import { GuestFinder } from './components/GuestFinder';
-import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning, Moon, Sun, X } from 'lucide-react';
+import { EmployeesView } from './components/EmployeesView';
+import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning, Moon, Sun, X, Users } from 'lucide-react';
 import { translations, Language } from './translations';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 
@@ -77,7 +78,7 @@ const generateInitialRooms = (): Room[] => {
   });
 };
 
-type ViewMode = 'grid' | 'calendar' | 'notes';
+type ViewMode = 'grid' | 'calendar' | 'notes' | 'employees';
 type WidgetId = 'quickActions' | 'clock' | 'pettyCash' | 'alerts' | 'occupancy' | 'stats';
 
 const DEFAULT_WIDGET_ORDER: WidgetId[] = ['quickActions', 'clock', 'pettyCash', 'alerts', 'occupancy', 'stats'];
@@ -424,6 +425,8 @@ export default function App() {
         return <CalendarView rooms={filteredRooms} onRoomClick={setSelectedRoom} lang={lang} />;
       case 'notes':
         return <NotesView lang={lang} />;
+      case 'employees':
+        return <EmployeesView lang={lang} />;
       case 'grid':
       default:
         return (
@@ -599,10 +602,17 @@ export default function App() {
                       <NotebookPen className="w-4 h-4" />
                       {t.views.notes}
                     </button>
+                    <button 
+                      onClick={() => setViewMode('employees')}
+                      className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'employees' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    >
+                      <Users className="w-4 h-4" />
+                      {t.views.employees}
+                    </button>
                  </div>
               </div>
               
-              {viewMode !== 'notes' && (
+              {viewMode === 'grid' && (
                 <div className="flex flex-wrap gap-3 w-full xl:w-auto">
                    <div className="relative group flex-1 sm:flex-none">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
