@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Employee, TimeEntry, EmployeeRole } from '../types';
 import { translations, Language } from '../translations';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
-import { User, Users, Plus, Clock, Briefcase, History, Check, X, Shield, Wrench, Sparkles } from 'lucide-react';
+import { User, Users, Plus, Clock, Briefcase, History, Check, X, Shield, Wrench, Sparkles, Filter, Calendar, Search, Edit2, Trash2 } from 'lucide-react';
 
 interface EmployeesViewProps {
   lang: Language;
@@ -17,14 +17,30 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
+  
+  // UI States
+  const [isAddingEmp, setIsAddingEmp] = useState(false);
+  const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
 
-  // New Employee Form
+  // Filters
+  const [filterName, setFilterName] = useState('');
+  const [filterRole, setFilterRole] = useState<string>('ALL');
+  const [filterDateStart, setFilterDateStart] = useState('');
+  const [filterDateEnd, setFilterDateEnd] = useState('');
+
+  // Forms
   const [newEmp, setNewEmp] = useState<Partial<Employee>>({
     name: '',
     role: 'Reception',
     hourlyRate: 25000
   });
+
+  const [entryForm, setEntryForm] = useState<{
+    employeeId: string;
+    start: string;
+    end: string;
+  }>({ employeeId: '', start: '', end: '' });
 
   // Load Data
   useEffect(() => {
@@ -51,7 +67,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
   const saveEmployees = async (updated: Employee[]) => {
       setEmployees(updated);
       if (isSupabaseConfigured()) {
-          // Simplistic sync for now
           for (const emp of updated) {
               await supabase.from('employees').upsert({ id: emp.id, data: emp });
           }
@@ -63,16 +78,15 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
   const saveTimeEntries = async (updated: TimeEntry[]) => {
       setTimeEntries(updated);
       if (isSupabaseConfigured()) {
-          // Find the one that changed or just upsert all (not efficient for production but fine for small scale)
-          // Better: just insert new ones, update modified ones.
-          // For simplicity in this demo:
-          for (const entry of updated.slice(0, 5)) { // Sync recent ones to be safe
+          for (const entry of updated.slice(0, 10)) { 
              await supabase.from('time_entries').upsert({ id: entry.id, data: entry });
           }
       } else {
           localStorage.setItem(STORAGE_KEY_TIME_ENTRIES, JSON.stringify(updated));
       }
   };
+
+  // --- Employee Management ---
 
   const handleAddEmployee = async () => {
     if (!newEmp.name) return;
@@ -86,31 +100,27 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
     };
     const updated = [...employees, emp];
     await saveEmployees(updated);
-    setIsAdding(false);
+    setIsAddingEmp(false);
     setNewEmp({ name: '', role: 'Reception', hourlyRate: 25000 });
   };
 
+  // --- Clock In/Out Logic ---
+
   const handleClockIn = async (empId: string) => {
-    // Update Employee Status
     const updatedEmps = employees.map(e => e.id === empId ? { ...e, isWorking: true } : e);
-    
-    // Create Time Entry
     const newEntry: TimeEntry = {
         id: Date.now().toString(),
         employeeId: empId,
         clockIn: new Date().toISOString()
     };
-
     await saveEmployees(updatedEmps);
     await saveTimeEntries([newEntry, ...timeEntries]);
   };
 
   const handleClockOut = async (empId: string) => {
      const now = new Date();
-     
-     // Find the active entry
      const activeEntryIndex = timeEntries.findIndex(t => t.employeeId === empId && !t.clockOut);
-     if (activeEntryIndex === -1) return; // Should not happen
+     if (activeEntryIndex === -1) return;
 
      const entry = timeEntries[activeEntryIndex];
      const start = new Date(entry.clockIn);
@@ -120,12 +130,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
      const emp = employees.find(e => e.id === empId);
      const pay = emp?.hourlyRate ? Math.round(diffHrs * emp.hourlyRate) : 0;
 
-     const updatedEntry = {
-         ...entry,
-         clockOut: now.toISOString(),
-         totalPay: pay
-     };
-
+     const updatedEntry = { ...entry, clockOut: now.toISOString(), totalPay: pay };
      const updatedEntries = [...timeEntries];
      updatedEntries[activeEntryIndex] = updatedEntry;
 
@@ -134,6 +139,137 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
      await saveEmployees(updatedEmps);
      await saveTimeEntries(updatedEntries);
   };
+
+  // --- Manual Entry & Editing ---
+
+  const openEntryModal = (entry?: TimeEntry) => {
+      if (entry) {
+          setEditingEntry(entry);
+          
+          // Convert ISO to local datetime-local string format: YYYY-MM-DDTHH:MM
+          const toLocalInput = (isoStr: string) => {
+              const d = new Date(isoStr);
+              d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+              return d.toISOString().slice(0, 16);
+          };
+
+          setEntryForm({
+              employeeId: entry.employeeId,
+              start: toLocalInput(entry.clockIn),
+              end: entry.clockOut ? toLocalInput(entry.clockOut) : ''
+          });
+      } else {
+          setEditingEntry(null);
+          setEntryForm({ employeeId: employees[0]?.id || '', start: '', end: '' });
+      }
+      setIsEntryModalOpen(true);
+  };
+
+  const handleSaveEntry = async () => {
+      if (!entryForm.employeeId || !entryForm.start) return;
+
+      const emp = employees.find(e => e.id === entryForm.employeeId);
+      if (!emp) return;
+
+      const startDate = new Date(entryForm.start);
+      const endDate = entryForm.end ? new Date(entryForm.end) : undefined;
+      
+      let pay = 0;
+      if (endDate && emp.hourlyRate) {
+          const diffHrs = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
+          pay = Math.max(0, Math.round(diffHrs * emp.hourlyRate));
+      }
+
+      let updatedEntries = [...timeEntries];
+      let updatedEmps = [...employees];
+
+      if (editingEntry) {
+          // Edit existing
+          updatedEntries = updatedEntries.map(e => {
+              if (e.id === editingEntry.id) {
+                  return {
+                      ...e,
+                      employeeId: entryForm.employeeId,
+                      clockIn: startDate.toISOString(),
+                      clockOut: endDate?.toISOString(),
+                      totalPay: pay
+                  };
+              }
+              return e;
+          });
+          
+          // If editing an active entry to be closed, or closed to active, update employee status logic is complex.
+          // For simplicity, we mostly rely on the fact that if 'clockOut' is removed, they are working.
+          const wasWorking = !editingEntry.clockOut;
+          const isNowWorking = !endDate;
+
+          if (wasWorking !== isNowWorking) {
+               updatedEmps = updatedEmps.map(e => e.id === emp.id ? { ...e, isWorking: isNowWorking } : e);
+          }
+
+      } else {
+          // New Entry
+          const newEntry: TimeEntry = {
+              id: Date.now().toString(),
+              employeeId: entryForm.employeeId,
+              clockIn: startDate.toISOString(),
+              clockOut: endDate?.toISOString(),
+              totalPay: pay
+          };
+          updatedEntries = [newEntry, ...updatedEntries];
+          
+          // If adding an open shift, set employee to working
+          if (!endDate) {
+              updatedEmps = updatedEmps.map(e => e.id === emp.id ? { ...e, isWorking: true } : e);
+          }
+      }
+
+      await saveEmployees(updatedEmps);
+      await saveTimeEntries(updatedEntries);
+      setIsEntryModalOpen(false);
+  };
+
+  const handleDeleteEntry = async (id: string) => {
+      if (!confirm(t.employees.deleteConfirm)) return;
+      
+      const entry = timeEntries.find(e => e.id === id);
+      if (entry && !entry.clockOut) {
+          // If deleting an active shift, set employee to not working
+          const updatedEmps = employees.map(e => e.id === entry.employeeId ? { ...e, isWorking: false } : e);
+          await saveEmployees(updatedEmps);
+      }
+
+      const updatedEntries = timeEntries.filter(e => e.id !== id);
+      await saveTimeEntries(updatedEntries);
+      if (isSupabaseConfigured()) {
+          await supabase.from('time_entries').delete().eq('id', id);
+      }
+  };
+
+  // --- Filtering Logic ---
+  
+  const filteredEntries = timeEntries.filter(entry => {
+      const emp = employees.find(e => e.id === entry.employeeId);
+      if (!emp) return false;
+
+      const matchesName = emp.name.toLowerCase().includes(filterName.toLowerCase());
+      const matchesRole = filterRole === 'ALL' || emp.role === filterRole;
+      
+      let matchesDate = true;
+      const entryDate = new Date(entry.clockIn);
+      if (filterDateStart) {
+          matchesDate = matchesDate && entryDate >= new Date(filterDateStart);
+      }
+      if (filterDateEnd) {
+          const endDate = new Date(filterDateEnd);
+          endDate.setHours(23, 59, 59); // End of day
+          matchesDate = matchesDate && entryDate <= endDate;
+      }
+
+      return matchesName && matchesRole && matchesDate;
+  });
+
+  // --- Render Helpers ---
 
   const formatDuration = (start: string, end?: string) => {
       const s = new Date(start);
@@ -159,7 +295,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
   };
 
   return (
-    <div className="h-full flex gap-6">
+    <div className="h-full flex gap-6 relative">
       {/* Left Column: Employee List */}
       <div className="w-1/3 flex flex-col gap-4">
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col h-full overflow-hidden">
@@ -168,14 +304,14 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                      <Users className="w-5 h-5 text-indigo-600" /> {t.employees.title}
                  </h3>
                  <button 
-                    onClick={() => setIsAdding(true)}
+                    onClick={() => setIsAddingEmp(true)}
                     className="p-1.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-200 transition-colors"
                  >
                      <Plus className="w-4 h-4" />
                  </button>
              </div>
              
-             {isAdding && (
+             {isAddingEmp && (
                  <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-indigo-50/50 dark:bg-indigo-900/10 animate-in slide-in-from-top-2">
                      <div className="space-y-3">
                          <input 
@@ -205,14 +341,14 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                              />
                          </div>
                          <div className="flex gap-2 justify-end">
-                             <button onClick={() => setIsAdding(false)} className="text-xs font-bold text-slate-500">{t.employees.cancel}</button>
+                             <button onClick={() => setIsAddingEmp(false)} className="text-xs font-bold text-slate-500">{t.employees.cancel}</button>
                              <button onClick={handleAddEmployee} className="text-xs font-bold bg-indigo-600 text-white px-3 py-1.5 rounded">{t.employees.save}</button>
                          </div>
                      </div>
                  </div>
              )}
 
-             <div className="flex-1 overflow-y-auto p-2 space-y-2">
+             <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
                  {employees.length === 0 && <div className="p-4 text-center text-slate-400 text-sm italic">No staff added yet.</div>}
                  {employees.map(emp => (
                      <div key={emp.id} className="p-3 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex justify-between items-center group">
@@ -253,15 +389,68 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
         </div>
       </div>
 
-      {/* Right Column: Timesheet History */}
+      {/* Right Column: Timesheet History & Filters */}
       <div className="w-2/3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-             <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                 <History className="w-5 h-5 text-slate-500" /> {t.employees.history}
-             </h3>
+          
+          {/* Header & Actions */}
+          <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 space-y-3">
+              <div className="flex justify-between items-center">
+                  <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                      <History className="w-5 h-5 text-slate-500" /> {t.employees.history}
+                  </h3>
+                  <button 
+                    onClick={() => openEntryModal()}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:border-indigo-300 dark:hover:border-indigo-500 transition-colors"
+                  >
+                      <Plus className="w-4 h-4" /> {t.employees.manualEntry}
+                  </button>
+              </div>
+
+              {/* Filters Toolbar */}
+              <div className="flex flex-wrap gap-2">
+                  <div className="flex-1 min-w-[150px] relative">
+                      <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                        type="text"
+                        placeholder={t.employees.searchHistory}
+                        value={filterName}
+                        onChange={(e) => setFilterName(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:text-white"
+                      />
+                  </div>
+                  <div className="w-[120px]">
+                      <select 
+                        value={filterRole}
+                        onChange={(e) => setFilterRole(e.target.value)}
+                        className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:text-white"
+                      >
+                          <option value="ALL">All Roles</option>
+                          <option value="Reception">Reception</option>
+                          <option value="Housekeeping">Housekeeping</option>
+                          <option value="Maintenance">Maintenance</option>
+                          <option value="Security">Security</option>
+                          <option value="Manager">Manager</option>
+                      </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                      <input 
+                        type="date"
+                        value={filterDateStart}
+                        onChange={(e) => setFilterDateStart(e.target.value)}
+                        className="px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 dark:text-white"
+                      />
+                      <span className="text-slate-400">-</span>
+                      <input 
+                        type="date"
+                        value={filterDateEnd}
+                        onChange={(e) => setFilterDateEnd(e.target.value)}
+                        className="px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 dark:text-white"
+                      />
+                  </div>
+              </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
               <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50 dark:bg-slate-900 text-xs uppercase text-slate-500 font-bold sticky top-0 z-10">
                       <tr>
@@ -270,17 +459,21 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                           <th className="px-4 py-3">{t.employees.clockOut}</th>
                           <th className="px-4 py-3">{t.employees.duration}</th>
                           <th className="px-4 py-3 text-right">{t.employees.totalPay}</th>
+                          <th className="px-4 py-3 text-center w-20">Actions</th>
                       </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                      {timeEntries.map(entry => {
+                      {filteredEntries.map(entry => {
                           const emp = employees.find(e => e.id === entry.employeeId) || { name: 'Unknown', role: 'Staff' };
                           const isActive = !entry.clockOut;
                           
                           return (
-                              <tr key={entry.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                              <tr key={entry.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
                                   <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">
-                                      {emp.name}
+                                      <div className="flex items-center gap-2">
+                                          {emp.name}
+                                          <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1.5 rounded text-slate-500">{emp.role}</span>
+                                      </div>
                                   </td>
                                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
                                       {new Date(entry.clockIn).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -300,18 +493,90 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                                   <td className="px-4 py-3 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
                                       {isActive ? '-' : formatMoney(entry.totalPay || 0)}
                                   </td>
+                                  <td className="px-4 py-3 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button 
+                                        onClick={() => openEntryModal(entry)}
+                                        className="p-1 hover:bg-indigo-50 dark:hover:bg-indigo-900 text-indigo-500 rounded"
+                                        title={t.employees.editEntry}
+                                      >
+                                          <Edit2 className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleDeleteEntry(entry.id)}
+                                        className="p-1 hover:bg-rose-50 dark:hover:bg-rose-900 text-rose-500 rounded"
+                                        title={t.employees.deleteEntry}
+                                      >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                  </td>
                               </tr>
                           );
                       })}
-                      {timeEntries.length === 0 && (
+                      {filteredEntries.length === 0 && (
                           <tr>
-                              <td colSpan={5} className="px-4 py-8 text-center text-slate-400 italic">No shifts recorded yet.</td>
+                              <td colSpan={6} className="px-4 py-8 text-center text-slate-400 italic">No shifts found matching your filters.</td>
                           </tr>
                       )}
                   </tbody>
               </table>
           </div>
       </div>
+
+      {/* Manual Entry / Edit Modal */}
+      {isEntryModalOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+                  <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                      <h3 className="font-bold text-slate-900 dark:text-white">
+                          {editingEntry ? t.employees.editEntry : t.employees.manualEntry}
+                      </h3>
+                      <button onClick={() => setIsEntryModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+                          <X className="w-5 h-5 text-slate-500" />
+                      </button>
+                  </div>
+                  <div className="p-4 space-y-4">
+                      <div>
+                          <label className="block text-xs uppercase text-slate-500 dark:text-slate-400 font-bold mb-1">{t.employees.selectStaff}</label>
+                          <select 
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white"
+                            value={entryForm.employeeId}
+                            onChange={(e) => setEntryForm({...entryForm, employeeId: e.target.value})}
+                          >
+                              {employees.map(e => (
+                                  <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
+                              ))}
+                          </select>
+                      </div>
+                      <div>
+                          <label className="block text-xs uppercase text-slate-500 dark:text-slate-400 font-bold mb-1">{t.employees.startTime}</label>
+                          <input 
+                            type="datetime-local"
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white"
+                            value={entryForm.start}
+                            onChange={(e) => setEntryForm({...entryForm, start: e.target.value})}
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-xs uppercase text-slate-500 dark:text-slate-400 font-bold mb-1">{t.employees.endTime}</label>
+                          <input 
+                            type="datetime-local"
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white"
+                            value={entryForm.end}
+                            onChange={(e) => setEntryForm({...entryForm, end: e.target.value})}
+                          />
+                          <p className="text-[10px] text-slate-400 mt-1 italic">Leave blank if currently working</p>
+                      </div>
+                      <button 
+                        onClick={handleSaveEntry}
+                        disabled={!entryForm.employeeId || !entryForm.start}
+                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
+                      >
+                          {t.employees.save}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 };

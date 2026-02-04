@@ -149,7 +149,18 @@ export const translations = {
       save: "Save Staff",
       cancel: "Cancel",
       hrs: "hrs",
-      mins: "mins"
+      mins: "mins",
+      searchHistory: "Search history...",
+      filterRole: "Filter Role",
+      dateFrom: "From Date",
+      dateTo: "To Date",
+      manualEntry: "Manual Shift Entry",
+      editEntry: "Edit Shift",
+      deleteEntry: "Delete",
+      startTime: "Start Time",
+      endTime: "End Time (Optional if working)",
+      selectStaff: "Select Staff",
+      deleteConfirm: "Are you sure you want to delete this shift?"
     }
   },
   vi: {
@@ -297,7 +308,18 @@ export const translations = {
       save: "Lưu",
       cancel: "Hủy",
       hrs: "giờ",
-      mins: "phút"
+      mins: "phút",
+      searchHistory: "Tìm lịch sử...",
+      filterRole: "Lọc theo Vị Trí",
+      dateFrom: "Từ ngày",
+      dateTo: "Đến ngày",
+      manualEntry: "Thêm Ca Thủ Công",
+      editEntry: "Sửa Ca",
+      deleteEntry: "Xóa",
+      startTime: "Giờ Bắt Đầu",
+      endTime: "Giờ Kết Thúc (Trống nếu đang làm)",
+      selectStaff: "Chọn Nhân Viên",
+      deleteConfirm: "Bạn chắc chắn muốn xóa ca làm việc này?"
     }
   }
 };
