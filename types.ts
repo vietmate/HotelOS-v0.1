@@ -120,3 +120,20 @@ export interface TimeEntry {
   totalPay?: number; // Calculated on clock out
   notes?: string;
 }
+
+export enum BookingType {
+  STANDARD = 'STANDARD',
+  HOURLY = 'HOURLY'
+}
+
+export interface Booking {
+  id: string;
+  room_id: string;
+  guest_name: string;
+  guest_id?: string;
+  check_in_at: string; // ISO String
+  check_out_at: string; // ISO String
+  booking_type: BookingType;
+  status: 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED' | 'RESERVED';
+  created_at?: string;
+}

@@ -1,5 +1,5 @@
 
-import { Room, RoomStatus } from '../types';
+import { Room, RoomStatus, Booking } from '../types';
 
 /**
  * Checks if a new booking interval overlaps with existing room commitments.
@@ -45,4 +45,35 @@ export const hasBookingConflict = (
   }
 
   return false;
+};
+
+/**
+ * Checks if a specific time slot is available given a list of existing bookings.
+ * Used for precise datetime validation (e.g., hourly bookings).
+ * 
+ * @param existingBookings List of bookings from database
+ * @param newStart ISO string of start datetime
+ * @param newEnd ISO string of end datetime
+ * @returns true if available (no overlap), false if conflict
+ */
+export const isTimeSlotAvailable = (
+  existingBookings: Booking[],
+  newStart: string,
+  newEnd: string
+): boolean => {
+  const start = new Date(newStart).getTime();
+  const end = new Date(newEnd).getTime();
+
+  for (const booking of existingBookings) {
+    if (booking.status === 'CANCELLED') continue;
+
+    const bStart = new Date(booking.check_in_at).getTime();
+    const bEnd = new Date(booking.check_out_at).getTime();
+
+    // Overlap logic: (StartA < EndB) and (StartB < EndA)
+    if (start < bEnd && bStart < end) {
+      return false; // Conflict found
+    }
+  }
+  return true;
 };
