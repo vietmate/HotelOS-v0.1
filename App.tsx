@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Room, RoomStatus, RoomType, BookingSource, Guest, RoomHistoryEntry } from './types';
 import { RoomCard } from './components/RoomCard';
@@ -12,7 +13,7 @@ import { NotesView } from './components/NotesView';
 import { GuestFinder } from './components/GuestFinder';
 import { EmployeesView } from './components/EmployeesView';
 import { MobileDashboard } from './components/MobileDashboard';
-import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning, Moon, Sun, X, Users, Smartphone, LayoutTemplate } from 'lucide-react';
+import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning, Moon, Sun, X, Users, Smartphone, LayoutTemplate, RotateCcw, Lock } from 'lucide-react';
 import { translations, Language } from './translations';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 
@@ -119,6 +120,11 @@ export default function App() {
   
   // Quick Actions State
   const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
+
+  // Admin Reset State
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   // Theme State
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -307,6 +313,58 @@ export default function App() {
       setIsGuestModalOpen(false);
       // Optional: Show toast success
       alert(`${translations[lang].guest.onboardSuccess}: ${guest.full_name}`);
+  };
+
+  const handleFactoryReset = async () => {
+      // Basic hardcoded security for this demo app
+      if (resetPassword !== 'admin123') {
+          alert(t.admin.wrongPass);
+          return;
+      }
+      
+      if (!confirm(t.admin.warning)) return;
+
+      setIsResetting(true);
+
+      if (isSupabaseConfigured()) {
+          try {
+            // Delete all data from tables
+            // Note: We use a hacky .neq('id', '0') to try and select all rows if RLS permits. 
+            // In a real admin scenario, you might use a stored procedure.
+            await supabase.from('bookings').delete().neq('id', '0');
+            await supabase.from('guests').delete().neq('id', '0');
+            await supabase.from('time_entries').delete().neq('id', '0');
+            await supabase.from('petty_cash').delete().neq('id', '0');
+            await supabase.from('notes').delete().neq('date_key', '0');
+            await supabase.from('employees').delete().neq('id', '0');
+            
+            // Delete rooms and reseeding
+            await supabase.from('rooms').delete().neq('id', '0');
+
+            const initialRooms = generateInitialRooms();
+            const { error } = await supabase.from('rooms').insert(
+                initialRooms.map(r => ({ id: r.id, data: r }))
+            );
+            
+            if (error) throw error;
+
+            // Reset settings
+            await supabase.from('app_settings').upsert({ key: 'hotel_name', value: 'HotelOS' });
+            await supabase.from('app_settings').upsert({ key: 'widget_order', value: DEFAULT_WIDGET_ORDER });
+
+          } catch (e) {
+              console.error("Reset failed", e);
+              alert("Reset partially failed. Check console.");
+          }
+      } else {
+          // Local Storage Clear
+          localStorage.clear();
+      }
+
+      // Hard refresh to clear state
+      setTimeout(() => {
+          window.location.reload();
+      }, 1000);
   };
 
   // --- Filtering & Stats ---
@@ -566,8 +624,15 @@ export default function App() {
                 ))}
             </div>
             
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 text-center">
-            <p className="text-[10px] text-slate-400">© 2026 Zukoforge.com</p>
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+               <p className="text-[10px] text-slate-400">© 2026 Zukoforge.com</p>
+               <button 
+                 onClick={() => { setIsResetModalOpen(true); setResetPassword(''); }} 
+                 className="text-[10px] flex items-center gap-1 text-rose-300 hover:text-rose-500 transition-colors"
+                 title={t.admin.resetTitle}
+               >
+                   <RotateCcw className="w-3 h-3" /> {t.admin.resetBtn}
+               </button>
             </div>
         </div>
       )}
@@ -740,6 +805,47 @@ export default function App() {
                   </div>
               </div>
           </div>
+      )}
+
+      {/* Admin Reset Modal */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700">
+                  <div className="p-6">
+                      <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <AlertTriangle className="w-6 h-6" />
+                      </div>
+                      <h3 className="font-bold text-xl text-center text-slate-900 dark:text-white mb-2">{t.admin.resetTitle}</h3>
+                      <p className="text-center text-sm text-slate-500 dark:text-slate-400 mb-6">{t.admin.warning}</p>
+                      
+                      <div className="relative mb-4">
+                           <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                           <input 
+                              type="password"
+                              placeholder={t.admin.passwordPlaceholder}
+                              value={resetPassword}
+                              onChange={(e) => setResetPassword(e.target.value)}
+                              className="w-full pl-9 p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none"
+                              autoFocus
+                           />
+                      </div>
+
+                      <button 
+                        onClick={handleFactoryReset}
+                        disabled={isResetting || !resetPassword}
+                        className="w-full py-3 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+                      >
+                         {isResetting ? t.admin.resetting : t.admin.confirm}
+                      </button>
+                      <button 
+                        onClick={() => setIsResetModalOpen(false)}
+                        className="w-full py-3 text-slate-500 dark:text-slate-400 font-bold hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                      >
+                         {t.admin.cancel}
+                      </button>
+                  </div>
+             </div>
+        </div>
       )}
 
     </div>

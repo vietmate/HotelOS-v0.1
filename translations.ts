@@ -1,5 +1,4 @@
 
-
 import { RoomStatus, RoomType, BookingSource } from './types';
 
 export type Language = 'en' | 'vi';
@@ -80,7 +79,10 @@ export const translations = {
       noHistory: "No history available",
       manualOverride: "Manual Status Override",
       workflowActions: "Workflow Actions",
-      dateConflict: "Date Conflict Detected!"
+      dateConflict: "Date Conflict Detected!",
+      addFutureRes: "Add Future Reservation",
+      futureGuest: "Future Guest Details",
+      cancelFuture: "Cancel Addition"
     },
     workflow: {
       markClean: "Mark Room Clean",
@@ -168,7 +170,7 @@ export const translations = {
       searchHistory: "Search history...",
       filterRole: "Filter Role",
       dateFrom: "From Date",
-      dateTo: "To Date",
+      dateTo: "Date To",
       manualEntry: "Manual Shift Entry",
       editEntry: "Edit Shift",
       deleteEntry: "Delete",
@@ -195,6 +197,16 @@ export const translations = {
       noDepartures: "No departures scheduled today.",
       viewRoom: "View Room",
       quickStats: "Quick Stats"
+    },
+    admin: {
+      resetTitle: "Factory Reset",
+      resetBtn: "Reset App",
+      passwordPlaceholder: "Admin Password",
+      warning: "WARNING: This will delete ALL data (Rooms, Guests, History, Finance) and cannot be undone.",
+      confirm: "Reset System",
+      cancel: "Cancel",
+      wrongPass: "Incorrect Password",
+      resetting: "Wiping Data & Resetting..."
     }
   },
   vi: {
@@ -272,7 +284,10 @@ export const translations = {
       noHistory: "Chưa có lịch sử",
       manualOverride: "Ghi đè trạng thái",
       workflowActions: "Quy trình xử lý",
-      dateConflict: "Phát hiện trùng lịch!"
+      dateConflict: "Phát hiện trùng lịch!",
+      addFutureRes: "Thêm Đặt Phòng Trước",
+      futureGuest: "Thông Tin Khách Đặt Trước",
+      cancelFuture: "Hủy Thêm"
     },
     workflow: {
       markClean: "Xác nhận đã dọn",
@@ -387,6 +402,16 @@ export const translations = {
       noDepartures: "Không có khách đi hôm nay.",
       viewRoom: "Xem phòng",
       quickStats: "Thống kê nhanh"
+    },
+    admin: {
+      resetTitle: "Khôi phục gốc",
+      resetBtn: "Reset App",
+      passwordPlaceholder: "Mật khẩu Admin",
+      warning: "CẢNH BÁO: Thao tác này sẽ xóa TẤT CẢ dữ liệu (Phòng, Khách, Lịch sử, Tài chính) và không thể hoàn tác.",
+      confirm: "Xác nhận Reset",
+      cancel: "Hủy",
+      wrongPass: "Sai mật khẩu",
+      resetting: "Đang xóa dữ liệu & Khôi phục..."
     }
   }
 };
