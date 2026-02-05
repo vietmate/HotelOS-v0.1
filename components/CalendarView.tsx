@@ -217,7 +217,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
           {rooms.map(room => (
             <div key={room.id} className="flex border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
                 <div onClick={() => onRoomClick(room)} className="w-32 p-3 border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-white dark:bg-slate-800 group-hover:bg-slate-50 dark:group-hover:bg-slate-700/30 z-10 cursor-pointer">
-                    <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">{room.name || room.number}</div>
+                    <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">{room.number}</div>
                     <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
                         <span>{t.roomType[room.type]}</span>
                         <span>•</span>

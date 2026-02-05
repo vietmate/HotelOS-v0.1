@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Room, RoomStatus, RoomType } from '../types';
-import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, AlertTriangle, Calendar, CheckSquare, Square, FileCheck, DollarSign } from 'lucide-react';
+import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, TriangleAlert, Calendar, CheckSquare, Square, FileCheck, DollarSign } from 'lucide-react';
 import { translations, Language } from '../translations';
 
 interface RoomCardProps {
@@ -97,7 +97,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
     >
       <div className="flex justify-between items-start mb-2">
         <span className="text-xl font-bold truncate pr-2" title={room.name || room.number}>
-          {room.name || room.number}
+          {room.number}
         </span>
         <div className="opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0">
             {getStatusIcon(room.status)}
@@ -105,7 +105,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
       </div>
       
       <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1.5 text-xs font-medium opacity-80 uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold opacity-80 uppercase tracking-wider">
             <span>{t.roomType[room.type] || room.type}</span>
             <span className="w-1 h-1 rounded-full bg-current opacity-50"></span>
             <span className="flex items-center gap-0.5">
@@ -114,53 +114,55 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
           </div>
           
           {room.salePrice && room.status === RoomStatus.OCCUPIED && (
-              <div className="bg-white/80 dark:bg-black/30 px-2 py-1 rounded-md text-xs font-bold shadow-sm border border-current/10 flex items-center gap-1">
-                  <DollarSign className="w-3.5 h-3.5 opacity-80" />
-                  <span className="text-sm font-extrabold">{formatPriceShort(room.salePrice)}</span>
+              <div className="bg-white/80 dark:bg-black/30 px-2 py-1 rounded-md text-[10px] font-bold shadow-sm border border-current/10 flex items-center gap-1">
+                  <DollarSign className="w-3 h-3 opacity-80" />
+                  <span className="text-xs font-black">{formatPriceShort(room.salePrice)}</span>
               </div>
           )}
       </div>
 
-      <div className="text-sm truncate min-h-[20px] mb-2">
+      <div className="text-sm truncate min-h-[32px] mb-2">
         {room.status === RoomStatus.OCCUPIED && room.guestName ? (
-          <>
-              <div className="flex items-center justify-between">
-                  <span className="font-semibold block truncate flex-1">{room.guestName}</span>
+          <div className="space-y-2">
+              <div className="flex items-center">
+                  <span className="px-2.5 py-1 rounded-lg border border-current/20 bg-white/40 dark:bg-black/20 font-bold text-sm block truncate flex-1 shadow-sm">
+                      {room.guestName}
+                  </span>
               </div>
-              <div className="flex gap-2 mt-1">
+              <div className="flex flex-wrap gap-1.5">
                 {room.bookingSource && (
-                    <span className="text-[10px] bg-white/50 dark:bg-black/20 border border-current/20 px-1.5 py-0.5 rounded-md inline-block font-medium opacity-80">
+                    <span className="text-[9px] bg-white/50 dark:bg-black/20 border border-current/10 px-1.5 py-0.5 rounded-md inline-block font-bold opacity-80">
                         {t.sources[room.bookingSource]}
                     </span>
                 )}
                 <div 
-                    className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md font-bold border
+                    className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md font-bold border
                     ${room.isIdScanned 
                         ? 'bg-emerald-100/50 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-200/50 dark:border-emerald-800/50' 
                         : 'bg-rose-100/80 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'}`}
                 >
-                    {room.isIdScanned ? <FileCheck className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                    {room.isIdScanned ? <FileCheck className="w-2.5 h-2.5" /> : <TriangleAlert className="w-2.5 h-2.5" />}
                     <span>{room.isIdScanned ? t.card.kbtttOk : t.card.kbtttMissing}</span>
                 </div>
               </div>
-          </>
+          </div>
         ) : (
-          <span className="opacity-60">{t.status[room.status]}</span>
+          <span className="opacity-60 text-xs font-medium uppercase tracking-tight">{t.status[room.status]}</span>
         )}
       </div>
 
       {showDates && (
-        <div className="mt-auto pt-3 border-t border-black/5 dark:border-white/10 text-xs grid grid-cols-2 gap-2 opacity-80">
+        <div className="mt-auto pt-3 border-t border-black/5 dark:border-white/10 text-[10px] grid grid-cols-2 gap-2 opacity-80 font-bold">
             {room.checkInDate && (
                 <div>
-                    <div className="text-[10px] uppercase opacity-60 font-semibold">{t.card.in}</div>
-                    <div className="font-mono font-medium leading-tight">{formatDate(room.checkInDate)}</div>
+                    <div className="uppercase opacity-60 text-[9px]">{t.card.in}</div>
+                    <div className="font-mono leading-tight">{formatDate(room.checkInDate)}</div>
                 </div>
             )}
             {room.checkOutDate && (
                 <div>
-                    <div className="text-[10px] uppercase opacity-60 font-semibold">{t.card.out}</div>
-                    <div className="font-mono font-medium leading-tight">{formatDate(room.checkOutDate)}</div>
+                    <div className="uppercase opacity-60 text-[9px]">{t.card.out}</div>
+                    <div className="font-mono leading-tight">{formatDate(room.checkOutDate)}</div>
                 </div>
             )}
         </div>
@@ -180,7 +182,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
               absolute -top-2 -right-2 px-2 py-1 rounded-full text-[10px] font-bold shadow-sm border flex items-center gap-1
               ${checkoutStatus === 'overdue' ? 'bg-rose-600 text-white border-rose-700 animate-pulse' : 'bg-amber-400 text-amber-900 border-amber-500'}
           `}>
-              {checkoutStatus === 'overdue' ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+              {checkoutStatus === 'overdue' ? <TriangleAlert className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
               {checkoutStatus === 'overdue' ? t.card.overdue : t.card.checkoutSoon}
           </div>
       )}
