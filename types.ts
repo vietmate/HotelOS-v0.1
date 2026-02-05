@@ -1,5 +1,4 @@
 
-
 export enum RoomStatus {
   AVAILABLE = 'AVAILABLE',
   OCCUPIED = 'OCCUPIED',
@@ -27,6 +26,8 @@ export interface Reservation {
   guestName: string;
   checkInDate: string;
   checkOutDate: string;
+  checkInTime?: string;
+  checkOutTime?: string;
   source?: BookingSource;
 }
 
@@ -66,7 +67,7 @@ export interface Room {
   notes?: string;
   maintenanceIssue?: string;
   bookingSource?: BookingSource;
-  upcomingReservation?: Reservation;
+  futureReservations?: Reservation[]; // Changed from upcomingReservation to array
   isIdScanned?: boolean; // KBTTT Compliance
   icalUrl?: string; // Booking.com Calendar Link
   history?: RoomHistoryEntry[];
@@ -109,7 +110,8 @@ export interface Employee {
   phone?: string;
   hourlyRate?: number; // In VND
   isWorking?: boolean; // Currently clocked in?
-  monthlyReviews?: number; // Gamification: Number of Google reviews obtained
+  monthlyReviews?: number; // Deprecated: Kept for migration, use reviewsHistory
+  reviewsHistory?: Record<string, number>; // Key format: "YYYY-MM", Value: count
 }
 
 export interface TimeEntry {

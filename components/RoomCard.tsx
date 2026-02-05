@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Room, RoomStatus, RoomType } from '../types';
 import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, AlertTriangle, Calendar, CheckSquare, Square, FileCheck, DollarSign } from 'lucide-react';
@@ -61,7 +62,6 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
   const t = translations[lang];
   const showDates = (room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && (room.checkInDate || room.checkOutDate);
 
-  // Determine Checkout Status
   let checkoutStatus: 'none' | 'soon' | 'overdue' = 'none';
   if (room.status === RoomStatus.OCCUPIED && room.checkOutDate) {
       const now = new Date();
@@ -72,14 +72,19 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
           const [h, min] = room.checkOutTime.split(':').map(Number);
           checkout.setHours(h, min, 0, 0);
       } else {
-          checkout.setHours(12, 0, 0, 0); // Default 12 PM
+          checkout.setHours(12, 0, 0, 0);
       }
 
       const diffMins = (checkout.getTime() - now.getTime()) / (1000 * 60);
       
       if (diffMins < 0) checkoutStatus = 'overdue';
-      else if (diffMins < 120) checkoutStatus = 'soon'; // 2 Hours warning
+      else if (diffMins < 120) checkoutStatus = 'soon'; 
   }
+
+  // Find the closest future reservation
+  const closestFuture = room.futureReservations && room.futureReservations.length > 0 
+      ? [...room.futureReservations].sort((a, b) => a.checkInDate.localeCompare(b.checkInDate))[0]
+      : null;
 
   return (
     <div 
@@ -103,17 +108,15 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
           <div className="flex items-center gap-1.5 text-xs font-medium opacity-80 uppercase tracking-wider">
             <span>{t.roomType[room.type] || room.type}</span>
             <span className="w-1 h-1 rounded-full bg-current opacity-50"></span>
-            <span className="flex items-center gap-0.5" title={`${t.card.capacity}: ${room.capacity}`}>
+            <span className="flex items-center gap-0.5">
             <Users className="w-3 h-3" /> {room.capacity}
             </span>
           </div>
           
-          {/* Sale Price Badge */}
           {room.salePrice && room.status === RoomStatus.OCCUPIED && (
-              <div className="bg-white/80 dark:bg-black/30 px-2 py-1 rounded-md text-xs font-bold shadow-sm border border-current/10 flex items-center gap-1" title={`${room.salePrice.toLocaleString()} VND`}>
+              <div className="bg-white/80 dark:bg-black/30 px-2 py-1 rounded-md text-xs font-bold shadow-sm border border-current/10 flex items-center gap-1">
                   <DollarSign className="w-3.5 h-3.5 opacity-80" />
                   <span className="text-sm font-extrabold">{formatPriceShort(room.salePrice)}</span>
-                  <span className="text-[10px] opacity-70">VND</span>
               </div>
           )}
       </div>
@@ -130,13 +133,11 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
                         {t.sources[room.bookingSource]}
                     </span>
                 )}
-                {/* KBTTT Indicator */}
                 <div 
                     className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md font-bold border
                     ${room.isIdScanned 
                         ? 'bg-emerald-100/50 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-200/50 dark:border-emerald-800/50' 
                         : 'bg-rose-100/80 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'}`}
-                    title={room.isIdScanned ? t.card.kbtttOk : t.card.kbtttMissing}
                 >
                     {room.isIdScanned ? <FileCheck className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
                     <span>{room.isIdScanned ? t.card.kbtttOk : t.card.kbtttMissing}</span>
@@ -153,35 +154,27 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
             {room.checkInDate && (
                 <div>
                     <div className="text-[10px] uppercase opacity-60 font-semibold">{t.card.in}</div>
-                    <div className="font-mono font-medium leading-tight">
-                        {formatDate(room.checkInDate)}
-                        {room.isHourly && room.checkInTime && <span className="block text-[10px] opacity-75">{room.checkInTime}</span>}
-                    </div>
+                    <div className="font-mono font-medium leading-tight">{formatDate(room.checkInDate)}</div>
                 </div>
             )}
             {room.checkOutDate && (
                 <div>
                     <div className="text-[10px] uppercase opacity-60 font-semibold">{t.card.out}</div>
-                    <div className="font-mono font-medium leading-tight">
-                        {formatDate(room.checkOutDate)}
-                         {room.isHourly && room.checkOutTime && <span className="block text-[10px] opacity-75">{room.checkOutTime}</span>}
-                    </div>
+                    <div className="font-mono font-medium leading-tight">{formatDate(room.checkOutDate)}</div>
                 </div>
             )}
         </div>
       )}
 
-      {/* Show Upcoming Reservation for Dirty/Available Rooms */}
-      {room.upcomingReservation && (room.status === RoomStatus.DIRTY || room.status === RoomStatus.AVAILABLE) && (
+      {closestFuture && (room.status === RoomStatus.DIRTY || room.status === RoomStatus.AVAILABLE) && (
           <div className="mt-auto pt-2 border-t border-black/5 dark:border-white/10">
               <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded text-[10px] font-bold">
                   <Calendar className="w-3 h-3" />
-                  <span className="truncate flex-1">Next: {formatDate(room.upcomingReservation.checkInDate)}</span>
+                  <span className="truncate flex-1">Next: {formatDate(closestFuture.checkInDate)}</span>
               </div>
           </div>
       )}
 
-      {/* Checkout Alert Badge */}
       {checkoutStatus !== 'none' && (
           <div className={`
               absolute -top-2 -right-2 px-2 py-1 rounded-full text-[10px] font-bold shadow-sm border flex items-center gap-1
@@ -190,15 +183,6 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
               {checkoutStatus === 'overdue' ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
               {checkoutStatus === 'overdue' ? t.card.overdue : t.card.checkoutSoon}
           </div>
-      )}
-
-      {room.status === RoomStatus.DIRTY && (
-        <div className="absolute bottom-2 right-2">
-           <span className="flex h-3 w-3 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-          </span>
-        </div>
       )}
     </div>
   );

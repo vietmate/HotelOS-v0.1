@@ -1,10 +1,9 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Employee, TimeEntry, EmployeeRole } from '../types';
 import { translations, Language } from '../translations';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
-import { User, Users, Plus, Briefcase, History, X, Shield, Wrench, Sparkles, Search, Edit2, Trash2, Trophy, Star, TrendingUp, Medal, RefreshCw, MoreVertical } from 'lucide-react';
+import { User, Users, Plus, Briefcase, History, X, Shield, Wrench, Sparkles, Search, Edit2, Trash2, Trophy, Star, TrendingUp, Medal, RefreshCw, MoreVertical, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 interface EmployeesViewProps {
   lang: Language;
@@ -25,6 +24,9 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false); // New: For editing staff
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null); // New: The staff member being edited
+
+  // Leaderboard Date State
+  const [leaderboardDate, setLeaderboardDate] = useState(new Date());
 
   // Filters
   const [filterName, setFilterName] = useState('');
@@ -89,6 +91,27 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
       }
   };
 
+  // --- Helpers for Leaderboard Month Keys ---
+  const getMonthKey = (date: Date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      return `${y}-${m}`;
+  };
+
+  const getReviewCount = (emp: Employee, key: string) => {
+      // Fallback to old field if history not present and key matches current month (optional migration logic)
+      if (!emp.reviewsHistory) return emp.monthlyReviews || 0; 
+      return emp.reviewsHistory[key] || 0;
+  };
+
+  const currentMonthKey = getMonthKey(leaderboardDate);
+
+  const changeLeaderboardMonth = (delta: number) => {
+      const newDate = new Date(leaderboardDate);
+      newDate.setMonth(newDate.getMonth() + delta);
+      setLeaderboardDate(newDate);
+  };
+
   // --- Employee Management ---
 
   const handleAddEmployee = async () => {
@@ -100,7 +123,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
         hourlyRate: 0,
         isWorking: false,
         phone: '',
-        monthlyReviews: 0
+        reviewsHistory: {} 
     };
     const updated = [...employees, emp];
     await saveEmployees(updated);
@@ -131,24 +154,60 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
   };
 
   const openEditStaffModal = (emp: Employee) => {
-      setEditingEmployee({...emp});
+      // Ensure reviewsHistory object exists
+      const safeEmp = {
+          ...emp,
+          reviewsHistory: emp.reviewsHistory || {}
+      };
+      setEditingEmployee(safeEmp);
       setIsStaffModalOpen(true);
   };
 
   // --- Reviews Logic ---
   const handleIncrementReview = async (empId: string) => {
+      // We always increment for the CURRENTLY VIEWED month on the leaderboard to allow backfilling
+      // or "Current Real Time" month? 
+      // User Request: "Record by months so managers can look at past"
+      // UX Decision: Increment the month currently displayed on the leaderboard to avoid confusion.
+      
       const updatedEmps = employees.map(e => {
           if (e.id === empId) {
-              return { ...e, monthlyReviews: (e.monthlyReviews || 0) + 1 };
+              const currentHistory = e.reviewsHistory || {};
+              // Auto-migrate old field if it exists and history is empty (one-time)
+              if (Object.keys(currentHistory).length === 0 && e.monthlyReviews) {
+                   const nowKey = getMonthKey(new Date());
+                   currentHistory[nowKey] = e.monthlyReviews;
+              }
+
+              const newCount = (currentHistory[currentMonthKey] || 0) + 1;
+              
+              return { 
+                  ...e, 
+                  reviewsHistory: {
+                      ...currentHistory,
+                      [currentMonthKey]: newCount
+                  },
+                  monthlyReviews: newCount // Keep synced for backup/legacy
+              };
           }
           return e;
       });
       await saveEmployees(updatedEmps);
   };
 
-  const handleResetLeaderboard = async () => {
-      if (!confirm(t.employees.resetConfirm)) return;
-      const updatedEmps = employees.map(e => ({ ...e, monthlyReviews: 0 }));
+  const handleResetLeaderboardMonth = async () => {
+      if (!confirm(`Reset reviews to 0 for ${leaderboardDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}?`)) return;
+      
+      const updatedEmps = employees.map(e => {
+          const currentHistory = e.reviewsHistory || {};
+          return {
+              ...e,
+              reviewsHistory: {
+                  ...currentHistory,
+                  [currentMonthKey]: 0
+              }
+          };
+      });
       await saveEmployees(updatedEmps);
   };
 
@@ -328,8 +387,9 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
   
   // --- Leaderboard Data ---
   const sortedByReviews = [...employees]
-      .filter(e => (e.monthlyReviews || 0) > 0)
-      .sort((a, b) => (b.monthlyReviews || 0) - (a.monthlyReviews || 0));
+      .map(e => ({...e, currentCount: getReviewCount(e, currentMonthKey)}))
+      .filter(e => e.currentCount > 0)
+      .sort((a, b) => b.currentCount - a.currentCount);
 
   return (
     <div className="h-full flex gap-6 relative">
@@ -380,7 +440,9 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
 
              <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
                  {employees.length === 0 && <div className="p-4 text-center text-slate-400 text-sm italic">No staff added yet.</div>}
-                 {employees.map(emp => (
+                 {employees.map(emp => {
+                     const currentReviewCount = getReviewCount(emp, currentMonthKey);
+                     return (
                      <div key={emp.id} className="p-3 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex justify-between items-center group relative">
                          <div className="flex items-center gap-3">
                              <div className="relative">
@@ -392,10 +454,10 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                              <div>
                                  <div className="font-bold text-sm text-slate-800 dark:text-white flex items-center gap-1">
                                      {emp.name}
-                                     {(emp.monthlyReviews || 0) > 0 && (
+                                     {currentReviewCount > 0 && (
                                          <span className="flex items-center text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 rounded-full font-bold">
                                              <Star className="w-2.5 h-2.5 fill-current mr-0.5" />
-                                             {emp.monthlyReviews}
+                                             {currentReviewCount}
                                          </span>
                                      )}
                                  </div>
@@ -408,7 +470,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                              <button
                                 onClick={() => handleIncrementReview(emp.id)}
                                 className="p-1.5 text-amber-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                                title={t.employees.addReview}
+                                title={`Add review for ${leaderboardDate.toLocaleDateString(undefined, {month:'short'})}`}
                              >
                                  <Star className="w-4 h-4" />
                              </button>
@@ -449,7 +511,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                              )}
                          </div>
                      </div>
-                 ))}
+                 )})}
              </div>
         </div>
       </div>
@@ -467,18 +529,29 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                  <h3 className="flex items-center gap-2 font-bold text-lg">
                      <Trophy className="w-5 h-5 text-amber-300" /> {t.employees.leaderboardTitle}
                  </h3>
-                 <button 
-                    onClick={handleResetLeaderboard}
-                    className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 text-indigo-100 hover:text-white"
-                    title={t.employees.resetLeaderboard}
-                 >
-                     <RefreshCw className="w-3.5 h-3.5" />
-                 </button>
+                 
+                 <div className="flex items-center gap-2">
+                     <div className="flex items-center bg-white/10 rounded-lg p-1">
+                        <button onClick={() => changeLeaderboardMonth(-1)} className="p-1 hover:bg-white/20 rounded-md transition-colors"><ChevronLeft className="w-4 h-4 text-indigo-100" /></button>
+                        <span className="text-xs font-bold px-3 min-w-[80px] text-center">
+                            {leaderboardDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                        </span>
+                        <button onClick={() => changeLeaderboardMonth(1)} className="p-1 hover:bg-white/20 rounded-md transition-colors"><ChevronRight className="w-4 h-4 text-indigo-100" /></button>
+                     </div>
+
+                     <button 
+                        onClick={handleResetLeaderboardMonth}
+                        className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 text-indigo-100 hover:text-white"
+                        title="Clear this month"
+                     >
+                         <RefreshCw className="w-3.5 h-3.5" />
+                     </button>
+                 </div>
              </div>
 
              {sortedByReviews.length === 0 ? (
                  <div className="text-center py-6 text-indigo-100 italic relative z-10 bg-white/10 rounded-lg border border-white/10">
-                     No reviews logged yet this month. Ask your first client!
+                     No reviews logged for {leaderboardDate.toLocaleDateString(undefined, {month:'long'})}.
                  </div>
              ) : (
                  <div className="relative z-10">
@@ -493,7 +566,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                                     </div>
                                     <div className="font-bold text-sm text-center truncate w-full">{sortedByReviews[1].name}</div>
                                     <div className="text-xs text-indigo-200 flex items-center gap-1">
-                                        <Star className="w-3 h-3 fill-amber-300 text-amber-300" /> {sortedByReviews[1].monthlyReviews}
+                                        <Star className="w-3 h-3 fill-amber-300 text-amber-300" /> {sortedByReviews[1].currentCount}
                                     </div>
                                 </>
                             ) : <div className="w-16"></div>} {/* Spacer if empty */}
@@ -511,7 +584,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                                     </div>
                                     <div className="font-bold text-lg text-center truncate w-full">{sortedByReviews[0].name}</div>
                                     <div className="text-sm font-bold text-amber-200 flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded-full mt-1">
-                                        <Star className="w-3.5 h-3.5 fill-current" /> {sortedByReviews[0].monthlyReviews} Reviews
+                                        <Star className="w-3.5 h-3.5 fill-current" /> {sortedByReviews[0].currentCount} Reviews
                                     </div>
                                 </>
                         </div>
@@ -526,7 +599,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                                     </div>
                                     <div className="font-bold text-sm text-center truncate w-full">{sortedByReviews[2].name}</div>
                                     <div className="text-xs text-indigo-200 flex items-center gap-1">
-                                        <Star className="w-3 h-3 fill-amber-300 text-amber-300" /> {sortedByReviews[2].monthlyReviews}
+                                        <Star className="w-3 h-3 fill-amber-300 text-amber-300" /> {sortedByReviews[2].currentCount}
                                     </div>
                                 </>
                              ) : <div className="w-16"></div>}
@@ -548,7 +621,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1 text-xs font-bold text-amber-300 bg-black/20 px-2 py-1 rounded-full">
-                                        <Star className="w-3 h-3 fill-current" /> {emp.monthlyReviews}
+                                        <Star className="w-3 h-3 fill-current" /> {emp.currentCount}
                                     </div>
                                 </div>
                             ))}
@@ -781,7 +854,9 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                       
                       {/* Manual Review Adjustment */}
                       <div>
-                          <label className="block text-xs uppercase text-slate-500 dark:text-slate-400 font-bold mb-1">{t.employees.adjustReviews}</label>
+                          <label className="block text-xs uppercase text-slate-500 dark:text-slate-400 font-bold mb-1">
+                              {t.employees.adjustReviews} ({leaderboardDate.toLocaleDateString(undefined, {month:'short'})})
+                          </label>
                           <div className="flex items-center gap-2">
                              <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-lg text-amber-600 dark:text-amber-400">
                                  <Star className="w-4 h-4 fill-current" />
@@ -790,8 +865,20 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                                 type="number"
                                 min="0"
                                 className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white text-sm"
-                                value={editingEmployee.monthlyReviews || 0}
-                                onChange={e => setEditingEmployee({...editingEmployee, monthlyReviews: parseInt(e.target.value) || 0})}
+                                // Access review count from the specific history key
+                                value={editingEmployee.reviewsHistory?.[currentMonthKey] || 0}
+                                onChange={e => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    setEditingEmployee({
+                                        ...editingEmployee,
+                                        reviewsHistory: {
+                                            ...(editingEmployee.reviewsHistory || {}),
+                                            [currentMonthKey]: val
+                                        },
+                                        // Update legacy field if current month is "now" (optional sync)
+                                        monthlyReviews: val 
+                                    });
+                                }}
                              />
                           </div>
                       </div>
