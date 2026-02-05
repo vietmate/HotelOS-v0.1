@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Room, RoomStatus, BookingSource, Guest, RoomHistoryEntry, Booking, BookingType, Reservation } from '../types';
-import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, OctagonAlert, PlusCircle, User as UserIcon } from 'lucide-react';
+import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon } from 'lucide-react';
 import { generateWelcomeMessage, getMaintenanceAdvice } from '../services/geminiService';
 import { hasBookingConflict, isTimeSlotAvailable } from '../services/validationService';
 import { translations, Language } from '../translations';
@@ -337,7 +337,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
         return (
             <div className="grid grid-cols-2 gap-3 mb-6">
                 <button onClick={() => handleTransition(RoomStatus.AVAILABLE, 'STATUS_CHANGE', 'Room cleaned')} className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl font-bold text-emerald-800 flex flex-col items-center"><Sparkles className="w-5 h-5 mb-1" />{t.workflow.markClean}</button>
-                <button onClick={() => setEditedRoom({...editedRoom, status: RoomStatus.MAINTENANCE})} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 flex flex-col items-center"><WrenchIcon />{t.workflow.startMaintenance}</button>
+                <button onClick={() => setEditedRoom({...editedRoom, status: RoomStatus.MAINTENANCE})} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 flex flex-col items-center"><WrenchIcon /></button>
             </div>
         );
       }
@@ -372,7 +372,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
             </select>
         </div>
 
-        {/* Future Reservations List */}
         <div className="mb-6 space-y-3">
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <CalendarDays className="w-4 h-4" /> Future Bookings
@@ -398,7 +397,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
         </div>
 
         <div className="space-y-6">
-          {/* Main Guest Info Form */}
           {(canCheckIn || isOccupied) && !isAddingFutureRes && (
             <div className={`p-4 rounded-xl border shadow-sm animate-in fade-in ${isConflict ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'}`}>
               <div className="flex justify-between items-start mb-4">
@@ -500,7 +498,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
             </div>
           )}
 
-          {/* New Future Reservation Form */}
           {isAddingFutureRes && (
             <div className="p-4 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/10 animate-in slide-in-from-right-4 space-y-4">
                 <div className="flex justify-between items-center">
@@ -530,7 +527,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
             </div>
           )}
 
-          {/* Maintenance Section (if status is MAINTENANCE) */}
           {isMaintenance && (
              <div className="bg-rose-50 dark:bg-rose-900/20 p-4 rounded-xl border border-rose-200 dark:border-rose-800/50 shadow-sm animate-in fade-in">
                <h3 className="text-lg font-bold text-rose-800 dark:text-rose-400 mb-4 flex items-center gap-2"><WrenchIcon className="w-5 h-5" /> {t.detail.maintenance}</h3>
@@ -549,7 +545,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
              </div>
           )}
 
-          {/* History */}
           <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-slate-800">
              <button onClick={() => setShowHistory(!showHistory)} className="w-full p-4 flex items-center justify-between bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                 <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200"><History className="w-4 h-4" /> {t.detail.history}</div>
