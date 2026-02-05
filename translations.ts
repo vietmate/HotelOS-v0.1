@@ -79,7 +79,8 @@ export const translations = {
       history: "Room History",
       noHistory: "No history available",
       manualOverride: "Manual Status Override",
-      workflowActions: "Workflow Actions"
+      workflowActions: "Workflow Actions",
+      dateConflict: "Date Conflict Detected!"
     },
     workflow: {
       markClean: "Mark Room Clean",
@@ -251,7 +252,8 @@ export const translations = {
       history: "Lịch sử phòng",
       noHistory: "Chưa có lịch sử",
       manualOverride: "Ghi đè trạng thái",
-      workflowActions: "Quy trình xử lý"
+      workflowActions: "Quy trình xử lý",
+      dateConflict: "Phát hiện trùng lịch!"
     },
     workflow: {
       markClean: "Xác nhận đã dọn",

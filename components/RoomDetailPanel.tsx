@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Room, RoomStatus, BookingSource, Guest, RoomHistoryEntry } from '../types';
-import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw } from 'lucide-react';
+import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon } from 'lucide-react';
 import { generateWelcomeMessage, getMaintenanceAdvice } from '../services/geminiService';
+import { hasBookingConflict } from '../services/validationService';
 import { translations, Language } from '../translations';
 import { GuestFinder } from './GuestFinder';
 
@@ -18,7 +19,7 @@ const TIME_SLOTS = Array.from({ length: 24 * 4 }, (_, i) => {
   return `${h}:${m}`;
 });
 
-const DateInput = ({ label, value, onChange, lang }: { label: string, value: string | undefined, onChange: (val: string) => void, lang: Language }) => {
+const DateInput = ({ label, value, onChange, lang, error }: { label: string, value: string | undefined, onChange: (val: string) => void, lang: Language, error?: boolean }) => {
   const now = new Date();
   
   let y = now.getFullYear();
@@ -54,8 +55,8 @@ const DateInput = ({ label, value, onChange, lang }: { label: string, value: str
 
   return (
     <div>
-      <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{label}</label>
-      <div className="flex gap-2">
+      <label className={`block text-xs uppercase font-bold mb-1 ${error ? 'text-rose-600' : 'text-slate-700 dark:text-slate-300'}`}>{label}</label>
+      <div className={`flex gap-2 rounded-lg p-1 ${error ? 'bg-rose-50 dark:bg-rose-900/20 ring-1 ring-rose-500' : ''}`}>
          {/* Day */}
          <div className="relative flex-1">
             <select 
@@ -156,8 +157,20 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
 
   if (!room || !editedRoom) return null;
 
+  // Validation Check
+  // We want to check if the dates currently in 'editedRoom' conflict with any OTHER reservations in 'room' (the prop/source of truth).
+  // If we are editing the Current Stay, we should ignore the current stay in the check (pass true).
+  const isEditingCurrentStay = editedRoom.status === RoomStatus.OCCUPIED;
+  const dateConflict = hasBookingConflict(room, editedRoom.checkInDate || '', editedRoom.checkOutDate || '', isEditingCurrentStay);
+
   const handleSave = () => {
     if (editedRoom) {
+      if (dateConflict) {
+          if (!confirm(`${t.detail.dateConflict} Save anyway?`)) {
+              return;
+          }
+      }
+
       // 1. Detect Changes for History Log
       const newHistory: RoomHistoryEntry[] = [...(editedRoom.history || [])];
       const now = new Date().toISOString();
@@ -406,21 +419,26 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
 
         {/* Upcoming Reservation Banner */}
         {editedRoom.upcomingReservation && (
-            <div className="mb-6 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/50 p-4 rounded-xl flex justify-between items-start">
+            <div className={`mb-6 border p-4 rounded-xl flex justify-between items-start ${dateConflict ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50' : 'bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-800/50'}`}>
                  <div>
-                     <h4 className="flex items-center gap-2 text-purple-800 dark:text-purple-300 font-bold text-sm mb-2">
+                     <h4 className={`flex items-center gap-2 font-bold text-sm mb-2 ${dateConflict ? 'text-red-800 dark:text-red-300' : 'text-purple-800 dark:text-purple-300'}`}>
                          <CalendarDays className="w-4 h-4" /> Upcoming Reservation
                      </h4>
-                     <div className="text-sm text-purple-900 dark:text-purple-200">
+                     <div className={`text-sm ${dateConflict ? 'text-red-900 dark:text-red-200' : 'text-purple-900 dark:text-purple-200'}`}>
                          <div className="font-semibold">{editedRoom.upcomingReservation.guestName}</div>
                          <div className="text-xs mt-1 opacity-80">
                              {editedRoom.upcomingReservation.checkInDate} to {editedRoom.upcomingReservation.checkOutDate}
                          </div>
+                         {dateConflict && (
+                             <div className="flex items-center gap-1 mt-2 text-xs font-bold text-red-600 dark:text-red-400">
+                                 <AlertOctagon className="w-3 h-3" /> CONFLICT DETECTED
+                             </div>
+                         )}
                      </div>
                  </div>
                  <button 
                     onClick={() => setEditedRoom({...editedRoom, upcomingReservation: undefined})}
-                    className="p-1.5 hover:bg-purple-100 dark:hover:bg-purple-800 rounded text-purple-700 dark:text-purple-300 transition-colors"
+                    className={`p-1.5 rounded transition-colors ${dateConflict ? 'hover:bg-red-100 dark:hover:bg-red-800 text-red-700 dark:text-red-300' : 'hover:bg-purple-100 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300'}`}
                     title="Remove reservation"
                  >
                     <Trash2 className="w-4 h-4" />
@@ -433,10 +451,17 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
           
           {/* Check In / Guest Info */}
           {(canCheckIn || isOccupied) && (
-            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm animate-in fade-in slide-in-from-bottom-4">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-                <UserCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> {t.detail.guestInfo}
-              </h3>
+            <div className={`p-4 rounded-xl border shadow-sm animate-in fade-in slide-in-from-bottom-4 ${dateConflict ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'}`}>
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <UserCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> {t.detail.guestInfo}
+                </h3>
+                {dateConflict && (
+                    <span className="text-[10px] font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300 px-2 py-1 rounded-full animate-pulse border border-red-200 dark:border-red-800">
+                        {t.detail.dateConflict}
+                    </span>
+                )}
+              </div>
               
               <div className="space-y-4">
                 {/* Guest Finder / Searcher */}
@@ -554,6 +579,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                         value={editedRoom.checkInDate}
                         onChange={(val) => setEditedRoom({...editedRoom, checkInDate: val})}
                         lang={lang}
+                        error={dateConflict}
                     />
                     <div className="space-y-2 mt-2">
                       {editedRoom.isHourly && (
@@ -573,6 +599,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                         value={editedRoom.checkOutDate}
                         onChange={(val) => setEditedRoom({...editedRoom, checkOutDate: val})}
                         lang={lang}
+                        error={dateConflict}
                     />
                     <div className="space-y-2 mt-2">
                          {editedRoom.isHourly && (
@@ -747,7 +774,8 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
           <div className="flex gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
              <button 
                 onClick={handleSave}
-                className="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                disabled={dateConflict}
+                className={`flex-1 py-3 rounded-lg font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${dateConflict ? 'bg-slate-300 cursor-not-allowed text-slate-500' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
              >
                <Save className="w-4 h-4" /> {t.detail.save}
              </button>
