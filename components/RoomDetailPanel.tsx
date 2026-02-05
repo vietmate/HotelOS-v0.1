@@ -280,15 +280,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
   const isOccupied = editedRoom.status === RoomStatus.OCCUPIED;
   const isMaintenance = editedRoom.status === RoomStatus.MAINTENANCE;
 
-  const renderHistoryIcon = (action: RoomHistoryEntry['action']) => {
-      switch(action) {
-          case 'CHECK_IN': return <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/50 rounded-full text-emerald-600"><ArrowRight className="w-3 h-3" /></div>;
-          case 'CHECK_OUT': return <div className="p-1.5 bg-rose-100 dark:bg-rose-900/50 rounded-full text-rose-600"><ArrowRight className="w-3 h-3 rotate-180" /></div>;
-          case 'MAINTENANCE': return <div className="p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-full text-amber-600"><WrenchIcon /></div>;
-          default: return <div className="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-full text-slate-500"><History className="w-3 h-3" /></div>;
-      }
-  };
-
   // --- State Machine Workflow Buttons ---
   const renderWorkflowActions = () => {
     const status = editedRoom.status;
@@ -672,8 +663,8 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
              </div>
           )}
 
-          {/* Collapsible History Section */}
-          <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+          {/* Collapsible History Section - NEW IMPLEMENTATION */}
+          <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-slate-800">
              <button 
                 onClick={() => setShowHistory(!showHistory)}
                 className="w-full p-4 flex items-center justify-between bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -687,30 +678,45 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
              </button>
              
              {showHistory && (
-                <div className="p-0 bg-white dark:bg-slate-800 max-h-60 overflow-y-auto">
+                <div className="p-4 bg-slate-50/50 dark:bg-slate-900/50 max-h-96 overflow-y-auto custom-scrollbar">
                     {(!editedRoom.history || editedRoom.history.length === 0) ? (
-                        <div className="p-4 text-center text-slate-400 text-xs italic">{t.detail.noHistory}</div>
+                        <div className="text-center text-slate-400 text-sm py-4 italic">{t.detail.noHistory}</div>
                     ) : (
-                        <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                        <div className="relative pl-4 space-y-6 mt-2">
+                            {/* Timeline Vertical Line */}
+                            <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-200 dark:bg-slate-700"></div>
+
                             {editedRoom.history.map((entry, idx) => (
-                                <div key={idx} className="p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex gap-3">
-                                    <div className="flex-shrink-0 mt-0.5">
-                                        {renderHistoryIcon(entry.action)}
+                                <div key={idx} className="relative pl-8 group">
+                                    {/* Timeline Dot */}
+                                    <div className={`
+                                        absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-slate-50 dark:border-slate-900 flex items-center justify-center z-10 box-content
+                                        ${entry.action === 'CHECK_IN' ? 'bg-emerald-500 text-white' : 
+                                          entry.action === 'CHECK_OUT' ? 'bg-rose-500 text-white' :
+                                          entry.action === 'MAINTENANCE' ? 'bg-amber-500 text-white' :
+                                          'bg-slate-400 text-white'}
+                                    `}>
+                                        {entry.action === 'CHECK_IN' && <ArrowRight className="w-3 h-3" />}
+                                        {entry.action === 'CHECK_OUT' && <ArrowRight className="w-3 h-3 rotate-180" />}
+                                        {entry.action === 'MAINTENANCE' && <WrenchIcon />}
+                                        {entry.action !== 'CHECK_IN' && entry.action !== 'CHECK_OUT' && entry.action !== 'MAINTENANCE' && <History className="w-3 h-3" />}
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{entry.description}</div>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                                                {new Date(entry.date).toLocaleString(undefined, { 
-                                                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-                                                })}
-                                            </span>
+
+                                    {/* Content Card */}
+                                    <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm group-hover:shadow-md transition-all group-hover:translate-x-1">
+                                        <div className="flex justify-between items-start mb-1 gap-2">
+                                            <div className="font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                                                {new Date(entry.date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            </div>
                                             {entry.staffName && (
-                                                <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1 rounded text-slate-600 dark:text-slate-300">
+                                                <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded-full text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 font-bold">
                                                     {entry.staffName}
                                                 </span>
                                             )}
                                         </div>
+                                        <p className="text-sm text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
+                                            {entry.description}
+                                        </p>
                                     </div>
                                 </div>
                             ))}

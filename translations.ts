@@ -175,7 +175,16 @@ export const translations = {
       startTime: "Start Time",
       endTime: "End Time (Optional if working)",
       selectStaff: "Select Staff",
-      deleteConfirm: "Are you sure you want to delete this shift?"
+      deleteConfirm: "Are you sure you want to delete this shift?",
+      leaderboardTitle: "Positive Google Review Leaderboard",
+      reviews: "Reviews",
+      addReview: "Log Review",
+      editStaff: "Edit Staff Profile",
+      deleteStaff: "Delete Staff",
+      deleteStaffConfirm: "Are you sure you want to delete this staff member? This cannot be undone.",
+      resetLeaderboard: "Reset Leaderboard",
+      resetConfirm: "Reset all review counts to zero for the new month?",
+      adjustReviews: "Adjust Review Count"
     }
   },
   vi: {
@@ -348,7 +357,16 @@ export const translations = {
       startTime: "Giờ Bắt Đầu",
       endTime: "Giờ Kết Thúc (Trống nếu đang làm)",
       selectStaff: "Chọn Nhân Viên",
-      deleteConfirm: "Bạn chắc chắn muốn xóa ca làm việc này?"
+      deleteConfirm: "Bạn chắc chắn muốn xóa ca làm việc này?",
+      leaderboardTitle: "Bảng Xếp Hạng Đánh Giá Google",
+      reviews: "Đánh giá",
+      addReview: "Thêm đánh giá",
+      editStaff: "Sửa hồ sơ nhân viên",
+      deleteStaff: "Xóa nhân viên",
+      deleteStaffConfirm: "Bạn có chắc muốn xóa nhân viên này? Thao tác không thể hoàn tác.",
+      resetLeaderboard: "Đặt lại bảng xếp hạng",
+      resetConfirm: "Đặt lại tất cả lượt đánh giá về 0 cho tháng mới?",
+      adjustReviews: "Điều chỉnh số lượt đánh giá"
     }
   }
 };

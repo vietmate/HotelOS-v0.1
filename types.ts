@@ -109,6 +109,7 @@ export interface Employee {
   phone?: string;
   hourlyRate?: number; // In VND
   isWorking?: boolean; // Currently clocked in?
+  monthlyReviews?: number; // Gamification: Number of Google reviews obtained
 }
 
 export interface TimeEntry {
