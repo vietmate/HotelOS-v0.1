@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Room, RoomStatus } from '../types';
 import { translations, Language } from '../translations';
@@ -30,12 +31,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
   const isSameDay = (d1: Date, dateStr?: string) => {
     if (!dateStr) return false;
     return getDateString(d1) === dateStr;
-  };
-
-  const isBetween = (checkDate: Date, startStr?: string, endStr?: string) => {
-    if (!startStr || !endStr) return false;
-    const check = getDateString(checkDate);
-    return check >= startStr && check <= endStr;
   };
 
   const handlePrev = () => {
@@ -71,38 +66,91 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
   };
 
   const getCellContent = (room: Room, date: Date) => {
+    const dateStr = getDateString(date);
     const isToday = isSameDay(date, getDateString(new Date()));
 
-    // 1. Check for Active Occupancy/Reservation (Current State)
-    if ((room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && 
-        isBetween(date, room.checkInDate, room.checkOutDate)) {
-        
-        const isStart = isSameDay(date, room.checkInDate);
-        return (
-            <div 
-                className={`h-8 mx-1 rounded-md text-[10px] flex items-center justify-center font-medium shadow-sm truncate px-1 cursor-pointer transition-transform hover:scale-105 ${getStatusColor(room.status)}`}
-                title={`${room.guestName || t.status[room.status]} (${room.checkInDate} - ${room.checkOutDate})`}
-            >
-                {isStart || date.getDay() === 0 || date.getDate() === 1 ? (room.guestName || t.status[room.status]) : ''}
-            </div>
-        );
+    // Helper for Continuous Bars
+    const renderBar = (
+      label: string, 
+      colorClass: string, 
+      startDateStr?: string, 
+      endDateStr?: string
+    ) => {
+       if (!startDateStr || !endDateStr) return null;
+       
+       const isStart = dateStr === startDateStr;
+       const isEnd = dateStr === endDateStr;
+       const isMiddle = dateStr > startDateStr && dateStr < endDateStr;
+       
+       // Optimization: If date is out of range, return null (though isBetween check in parent usually handles this, we double check for rendering logic)
+       if (!isStart && !isEnd && !isMiddle) return null;
+
+       // Single Day case
+       if (startDateStr === endDateStr && isStart) {
+          return (
+             <div className={`h-8 mx-1 rounded-md text-[10px] flex items-center justify-center font-medium shadow-sm truncate px-1 ${colorClass}`}>
+                 {label}
+             </div>
+          );
+       }
+
+       if (isStart) {
+           return (
+               <div className={`h-8 ml-1 mr-0 rounded-l-md text-[10px] flex items-center pl-2 font-medium shadow-sm truncate ${colorClass} z-10 relative border-r-0`}>
+                   {label}
+               </div>
+           );
+       }
+       
+       if (isMiddle) {
+           return (
+               <div className={`h-8 mx-0 text-[10px] flex items-center justify-center font-medium shadow-sm ${colorClass} z-0 relative rounded-none border-x-0`}>
+               </div>
+           );
+       }
+
+       if (isEnd) {
+           return (
+               <div className={`h-8 mr-1 ml-0 rounded-r-md text-[10px] flex items-center justify-center font-medium shadow-sm ${colorClass} z-10 relative border-l-0`}>
+               </div>
+           );
+       }
+       
+       return null;
+    };
+
+    // 1. Active Occupancy/Reservation (High Priority)
+    if ((room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED)) {
+        // Only render if date is within range
+        if (dateStr >= (room.checkInDate || '') && dateStr <= (room.checkOutDate || '')) {
+            const content = renderBar(
+                room.guestName || t.status[room.status],
+                getStatusColor(room.status),
+                room.checkInDate,
+                room.checkOutDate
+            );
+            if (content) return content;
+        }
     }
     
-    // 2. Check for Upcoming Reservation (Future State, overlaying other statuses except Occupied)
-    // This allows a DIRTY room to show a future reservation bar
-    if (room.upcomingReservation && isBetween(date, room.upcomingReservation.checkInDate, room.upcomingReservation.checkOutDate)) {
-        const isStart = isSameDay(date, room.upcomingReservation.checkInDate);
-        return (
-            <div 
-                className={`h-8 mx-1 rounded-md text-[10px] flex items-center justify-center font-medium shadow-sm truncate px-1 cursor-pointer transition-transform hover:scale-105 bg-purple-500 border-purple-600 text-white dark:bg-purple-600 dark:border-purple-700`}
-                title={`${room.upcomingReservation.guestName} (Reserved)`}
-            >
-                {isStart || date.getDay() === 0 || date.getDate() === 1 ? room.upcomingReservation.guestName : ''}
-            </div>
-        );
+    // 2. Upcoming Reservation (Medium Priority - Overlays empty slots or Dirty)
+    // Note: If room is Occupied, we usually don't show upcoming reservation unless it starts after checkout.
+    // Since we handle Occupied above, this block runs if room is NOT occupied OR if date is outside occupied range.
+    if (room.upcomingReservation) {
+        if (dateStr >= room.upcomingReservation.checkInDate && dateStr <= room.upcomingReservation.checkOutDate) {
+             const content = renderBar(
+                room.upcomingReservation.guestName,
+                'bg-purple-500 border-purple-600 text-white dark:bg-purple-600 dark:border-purple-700', // Override color
+                room.upcomingReservation.checkInDate,
+                room.upcomingReservation.checkOutDate
+            );
+            if (content) return content;
+        }
     }
 
-    // 3. Check maintenance - Show across all days
+    // 3. Maintenance (Blocking)
+    // Maintenance typically applies to "now" until fixed. We show it on Today.
+    // If you had a maintenance range, we'd use renderBar.
     if (room.status === RoomStatus.MAINTENANCE) {
         return (
             <div className={`h-8 mx-1 rounded-md bg-rose-100 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 flex items-center justify-center`}>
@@ -111,16 +159,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
         );
     }
 
-    // 4. Check Dirty - Show only today (historical dirty status isn't usually tracked in simple views)
+    // 4. Dirty (Today only)
     if (room.status === RoomStatus.DIRTY && isToday) {
          return (
             <div className={`h-8 mx-1 rounded-md bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 flex items-center justify-center`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
             </div>
         );
     }
 
-    // 5. Check Available - Show only today
+    // 5. Available (Today only)
     if (room.status === RoomStatus.AVAILABLE && isToday) {
         return (
            <div className={`h-8 mx-1 rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-bold shadow-sm`}>
@@ -223,7 +271,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
                         <div 
                             key={`${room.id}-${date.toISOString()}`} 
                             onClick={() => onRoomClick(room)}
-                            className={`flex-1 min-w-[80px] p-1 border-r border-slate-100 dark:border-slate-700/50 relative cursor-pointer ${isToday ? 'bg-indigo-50/20 dark:bg-indigo-900/10' : ''}`}
+                            className={`flex-1 min-w-[80px] py-1 border-r border-slate-100 dark:border-slate-700/50 relative cursor-pointer ${isToday ? 'bg-indigo-50/20 dark:bg-indigo-900/10' : ''}`}
                         >
                             {getCellContent(room, date)}
                         </div>
