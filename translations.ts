@@ -185,6 +185,16 @@ export const translations = {
       resetLeaderboard: "Reset Leaderboard",
       resetConfirm: "Reset all review counts to zero for the new month?",
       adjustReviews: "Adjust Review Count"
+    },
+    mobile: {
+      toggle: "Mobile View",
+      arrivals: "Today's Arrivals",
+      departures: "Today's Departures",
+      occupancy: "Occupancy",
+      noArrivals: "No arrivals expected today.",
+      noDepartures: "No departures scheduled today.",
+      viewRoom: "View Room",
+      quickStats: "Quick Stats"
     }
   },
   vi: {
@@ -367,6 +377,16 @@ export const translations = {
       resetLeaderboard: "Đặt lại bảng xếp hạng",
       resetConfirm: "Đặt lại tất cả lượt đánh giá về 0 cho tháng mới?",
       adjustReviews: "Điều chỉnh số lượt đánh giá"
+    },
+    mobile: {
+      toggle: "Chế độ Mobile",
+      arrivals: "Khách đến hôm nay",
+      departures: "Khách đi hôm nay",
+      occupancy: "Công suất",
+      noArrivals: "Không có khách đến hôm nay.",
+      noDepartures: "Không có khách đi hôm nay.",
+      viewRoom: "Xem phòng",
+      quickStats: "Thống kê nhanh"
     }
   }
 };

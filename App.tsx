@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Room, RoomStatus, RoomType, BookingSource, Guest, RoomHistoryEntry } from './types';
 import { RoomCard } from './components/RoomCard';
@@ -11,7 +13,8 @@ import { CalendarView } from './components/CalendarView';
 import { NotesView } from './components/NotesView';
 import { GuestFinder } from './components/GuestFinder';
 import { EmployeesView } from './components/EmployeesView';
-import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning, Moon, Sun, X, Users } from 'lucide-react';
+import { MobileDashboard } from './components/MobileDashboard';
+import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning, Moon, Sun, X, Users, Smartphone, LayoutTemplate } from 'lucide-react';
 import { translations, Language } from './translations';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 
@@ -114,6 +117,7 @@ export default function App() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [lang, setLang] = useState<Language>('en');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [isMobileMode, setIsMobileMode] = useState(false); // New Mobile Toggle
   
   // Quick Actions State
   const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
@@ -439,6 +443,10 @@ export default function App() {
         )
     }
 
+    if (isMobileMode) {
+        return <MobileDashboard rooms={rooms} onRoomClick={setSelectedRoom} lang={lang} />;
+    }
+
     switch(viewMode) {
       case 'calendar':
         return <CalendarView rooms={filteredRooms} onRoomClick={setSelectedRoom} lang={lang} />;
@@ -473,102 +481,104 @@ export default function App() {
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-200">
       
       {/* Left Sidebar / Stats Area */}
-      <div className="w-80 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col hidden md:flex z-10 transition-colors duration-200">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3 mb-3">
-             <div className="bg-indigo-600 p-2 rounded-lg">
-                <Building2 className="text-white w-6 h-6" />
-             </div>
-             <div className="flex-1 min-w-0">
-               {isEditingName ? (
-                 <input
-                   type="text"
-                   value={hotelName}
-                   onChange={(e) => setHotelName(e.target.value)}
-                   onBlur={() => handleNameSave(hotelName)}
-                   onKeyDown={(e) => e.key === 'Enter' && handleNameSave(hotelName)}
-                   autoFocus
-                   className="w-full bg-white dark:bg-slate-800 border border-indigo-300 rounded px-1 py-0.5 text-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                 />
-               ) : (
-                 <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingName(true)} title="Click to edit hotel name">
-                   <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight truncate">{hotelName}</h1>
-                   <Pencil className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-all hover:text-indigo-500" />
-                 </div>
-               )}
-               <div className="flex items-center gap-1">
-                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{t.dashboard}</p>
-                   {isConnected ? (
-                       <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 px-1.5 py-0.5 rounded flex items-center gap-1.5 font-bold" title="Connected to Supabase Cloud">
-                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div> Online
-                       </span>
-                   ) : (
-                       <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded flex items-center gap-1.5 border border-slate-200 dark:border-slate-700" title="Running in offline/local mode">
-                           <WifiOff className="w-3 h-3" /> Offline
-                       </span>
-                   )}
-               </div>
-             </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-                <button onClick={() => setLang('en')} className={`text-xs px-2 py-1 rounded transition-colors ${lang === 'en' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>EN</button>
-                <span className="text-slate-200 dark:text-slate-700">|</span>
-                <button onClick={() => setLang('vi')} className={`text-xs px-2 py-1 rounded transition-colors ${lang === 'vi' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>VN</button>
-            </div>
-            <div className="flex items-center gap-1">
-                <button 
-                    onClick={toggleTheme}
-                    className="p-1.5 rounded transition-colors flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-                    title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                >
-                    {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-                </button>
-                <button 
-                    onClick={() => setIsReordering(!isReordering)}
-                    className={`p-1.5 rounded transition-colors flex items-center gap-1 text-xs font-bold ${isReordering ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'}`}
-                    title={t.customizeLayout}
-                >
-                    {isReordering ? <Check className="w-3.5 h-3.5" /> : <Settings2 className="w-3.5 h-3.5" />}
-                </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
-            {widgetOrder.map((id, index) => (
-                <div 
-                    key={id}
-                    draggable={isReordering}
-                    onDragStart={() => handleDragStart(index)}
-                    onDragEnter={(e) => {
-                         e.preventDefault(); // Necessary for drop
-                         handleDragEnter(index);
-                    }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDragEnd={handleDragEnd}
-                    className={`transition-all duration-300 ease-in-out relative ${isReordering ? 'cursor-move ring-2 ring-indigo-500/20 rounded-xl mb-4 p-2 bg-slate-50 dark:bg-slate-800 border border-indigo-100 dark:border-indigo-900' : ''}`}
-                >
-                    {isReordering && (
-                        <div className="absolute top-1/2 -left-2 -translate-y-1/2 -translate-x-full text-slate-300">
-                             <GripVertical className="w-4 h-4" />
-                        </div>
-                    )}
-                    {renderWidgetContent(id)}
+      {!isMobileMode && (
+        <div className="w-80 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col hidden md:flex z-10 transition-colors duration-200">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3 mb-3">
+                <div className="bg-indigo-600 p-2 rounded-lg">
+                    <Building2 className="text-white w-6 h-6" />
                 </div>
-            ))}
+                <div className="flex-1 min-w-0">
+                {isEditingName ? (
+                    <input
+                    type="text"
+                    value={hotelName}
+                    onChange={(e) => setHotelName(e.target.value)}
+                    onBlur={() => handleNameSave(hotelName)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleNameSave(hotelName)}
+                    autoFocus
+                    className="w-full bg-white dark:bg-slate-800 border border-indigo-300 rounded px-1 py-0.5 text-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                ) : (
+                    <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingName(true)} title="Click to edit hotel name">
+                    <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight truncate">{hotelName}</h1>
+                    <Pencil className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-all hover:text-indigo-500" />
+                    </div>
+                )}
+                <div className="flex items-center gap-1">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{t.dashboard}</p>
+                    {isConnected ? (
+                        <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 px-1.5 py-0.5 rounded flex items-center gap-1.5 font-bold" title="Connected to Supabase Cloud">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div> Online
+                        </span>
+                    ) : (
+                        <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded flex items-center gap-1.5 border border-slate-200 dark:border-slate-700" title="Running in offline/local mode">
+                            <WifiOff className="w-3 h-3" /> Offline
+                        </span>
+                    )}
+                </div>
+                </div>
+            </div>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setLang('en')} className={`text-xs px-2 py-1 rounded transition-colors ${lang === 'en' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>EN</button>
+                    <span className="text-slate-200 dark:text-slate-700">|</span>
+                    <button onClick={() => setLang('vi')} className={`text-xs px-2 py-1 rounded transition-colors ${lang === 'vi' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>VN</button>
+                </div>
+                <div className="flex items-center gap-1">
+                    <button 
+                        onClick={toggleTheme}
+                        className="p-1.5 rounded transition-colors flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                        title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                    >
+                        {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                    </button>
+                    <button 
+                        onClick={() => setIsReordering(!isReordering)}
+                        className={`p-1.5 rounded transition-colors flex items-center gap-1 text-xs font-bold ${isReordering ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'}`}
+                        title={t.customizeLayout}
+                    >
+                        {isReordering ? <Check className="w-3.5 h-3.5" /> : <Settings2 className="w-3.5 h-3.5" />}
+                    </button>
+                </div>
+            </div>
+            </div>
+
+            <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
+                {widgetOrder.map((id, index) => (
+                    <div 
+                        key={id}
+                        draggable={isReordering}
+                        onDragStart={() => handleDragStart(index)}
+                        onDragEnter={(e) => {
+                            e.preventDefault(); // Necessary for drop
+                            handleDragEnter(index);
+                        }}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDragEnd={handleDragEnd}
+                        className={`transition-all duration-300 ease-in-out relative ${isReordering ? 'cursor-move ring-2 ring-indigo-500/20 rounded-xl mb-4 p-2 bg-slate-50 dark:bg-slate-800 border border-indigo-100 dark:border-indigo-900' : ''}`}
+                    >
+                        {isReordering && (
+                            <div className="absolute top-1/2 -left-2 -translate-y-1/2 -translate-x-full text-slate-300">
+                                <GripVertical className="w-4 h-4" />
+                            </div>
+                        )}
+                        {renderWidgetContent(id)}
+                    </div>
+                ))}
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 text-center">
+            <p className="text-[10px] text-slate-400">© 2026 MINHTAM HotelOS</p>
+            </div>
         </div>
-        
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 text-center">
-          <p className="text-[10px] text-slate-400">© 2026 MINHTAM HotelOS</p>
-        </div>
-      </div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         
-        {/* Mobile Header */}
-        <div className="md:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center">
+        {/* Mobile Header (Only visible on small screens) */}
+        <div className={`md:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center ${isMobileMode ? 'shadow-sm z-20' : ''}`}>
            <div className="font-bold text-lg flex items-center gap-2 dark:text-white">
               <Building2 className="text-indigo-600 w-5 h-5" /> {hotelName}
            </div>
@@ -583,87 +593,116 @@ export default function App() {
                  <button onClick={() => setLang('en')} className={`text-[10px] px-1.5 rounded ${lang === 'en' ? 'bg-white dark:bg-slate-700 shadow text-indigo-700 dark:text-indigo-300 font-bold' : 'text-slate-400'}`}>EN</button>
                  <button onClick={() => setLang('vi')} className={`text-[10px] px-1.5 rounded ${lang === 'vi' ? 'bg-white dark:bg-slate-700 shadow text-indigo-700 dark:text-indigo-300 font-bold' : 'text-slate-400'}`}>VN</button>
               </div>
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                {occupiedCount}/{rooms.length}
-              </div>
            </div>
         </div>
 
-        {/* Top Bar */}
-        <div className="p-6 pb-2">
-           <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-              <div className="flex items-center gap-4">
-                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t.roomOverview}</h2>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm">{t.manageBookings}</p>
-                 </div>
-                 
-                 {/* View Switcher Tabs */}
-                 <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-lg flex items-center gap-1 ml-0 xl:ml-6">
-                    <button 
-                      onClick={() => setViewMode('grid')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                    >
-                      <LayoutGrid className="w-4 h-4" />
-                      {t.views.grid}
-                    </button>
-                    <button 
-                      onClick={() => setViewMode('calendar')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                    >
-                      <CalendarDays className="w-4 h-4" />
-                      {t.views.calendar}
-                    </button>
-                    <button 
-                      onClick={() => setViewMode('notes')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'notes' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                    >
-                      <NotebookPen className="w-4 h-4" />
-                      {t.views.notes}
-                    </button>
-                    <button 
-                      onClick={() => setViewMode('employees')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'employees' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                    >
-                      <Users className="w-4 h-4" />
-                      {t.views.employees}
-                    </button>
-                 </div>
-              </div>
-              
-              {viewMode === 'grid' && (
-                <div className="flex flex-wrap gap-3 w-full xl:w-auto">
-                   <div className="relative group flex-1 sm:flex-none">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                      <input 
-                        type="text" 
-                        placeholder={t.searchPlaceholder}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full sm:w-64 pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:text-white"
-                      />
+        {/* Top Bar (Desktop & Mobile Controls) */}
+        {!isMobileMode && (
+             <div className="p-6 pb-2">
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+                   <div className="flex items-center gap-4 w-full xl:w-auto">
+                      <div>
+                         <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t.roomOverview}</h2>
+                         <p className="text-slate-500 dark:text-slate-400 text-sm">{t.manageBookings}</p>
+                      </div>
+                      
+                      {/* Mobile View Toggle */}
+                       <button
+                           onClick={() => setIsMobileMode(!isMobileMode)}
+                           className={`ml-auto xl:ml-4 px-3 py-1.5 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all
+                               ${isMobileMode 
+                                   ? 'bg-indigo-600 border-indigo-600 text-white shadow-md ring-2 ring-indigo-200' 
+                                   : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300'}
+                           `}
+                       >
+                           {isMobileMode ? <LayoutTemplate className="w-4 h-4" /> : <Smartphone className="w-4 h-4" />}
+                           <span className="hidden sm:inline">{t.mobile.toggle}</span>
+                       </button>
                    </div>
                    
-                   <div className="relative flex-1 sm:flex-none">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                         <Filter className="w-4 h-4 text-slate-400" />
-                      </div>
-                      <select 
-                        value={filter} 
-                        onChange={(e) => setFilter(e.target.value as RoomStatus | 'ALL')}
-                        className="w-full sm:w-auto pl-9 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer dark:text-white"
-                      >
-                         <option value="ALL">{t.allStatus}</option>
-                         {Object.values(RoomStatus).map(s => <option key={s} value={s}>{t.status[s]}</option>)}
-                      </select>
-                   </div>
+                   {/* View Switcher Tabs (Hidden in Mobile Mode) */}
+                   {!isMobileMode && (
+                    <div className="flex flex-col sm:flex-row w-full xl:w-auto gap-4 items-center">
+                        <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-lg flex items-center gap-1">
+                             <button 
+                               onClick={() => setViewMode('grid')}
+                               className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                             >
+                               <LayoutGrid className="w-4 h-4" />
+                               {t.views.grid}
+                             </button>
+                             <button 
+                               onClick={() => setViewMode('calendar')}
+                               className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                             >
+                               <CalendarDays className="w-4 h-4" />
+                               {t.views.calendar}
+                             </button>
+                             <button 
+                               onClick={() => setViewMode('notes')}
+                               className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'notes' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                             >
+                               <NotebookPen className="w-4 h-4" />
+                               {t.views.notes}
+                             </button>
+                             <button 
+                               onClick={() => setViewMode('employees')}
+                               className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'employees' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                             >
+                               <Users className="w-4 h-4" />
+                               {t.views.employees}
+                             </button>
+                        </div>
+                        
+                        {viewMode === 'grid' && (
+                            <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+                            <div className="relative group flex-1 sm:flex-none">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                                <input 
+                                    type="text" 
+                                    placeholder={t.searchPlaceholder}
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full sm:w-64 pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:text-white"
+                                />
+                            </div>
+                            
+                            <div className="relative flex-1 sm:flex-none">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    <Filter className="w-4 h-4 text-slate-400" />
+                                </div>
+                                <select 
+                                    value={filter} 
+                                    onChange={(e) => setFilter(e.target.value as RoomStatus | 'ALL')}
+                                    className="w-full sm:w-auto pl-9 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer dark:text-white"
+                                >
+                                    <option value="ALL">{t.allStatus}</option>
+                                    {Object.values(RoomStatus).map(s => <option key={s} value={s}>{t.status[s]}</option>)}
+                                </select>
+                            </div>
+                            </div>
+                        )}
+                    </div>
+                   )}
                 </div>
-              )}
-           </div>
-        </div>
+             </div>
+        )}
+
+        {/* Floating Mobile Toggle Button (Visible ONLY when in Mobile Mode to switch back) */}
+        {isMobileMode && (
+             <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+                 <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t.mobile.toggle}</h2>
+                 <button
+                    onClick={() => setIsMobileMode(false)}
+                    className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700"
+                 >
+                     <LayoutTemplate className="w-4 h-4" /> Desktop View
+                 </button>
+             </div>
+        )}
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 pt-4">
+        <div className={`flex-1 overflow-y-auto ${!isMobileMode ? 'p-6 pt-4' : ''}`}>
           {renderContent()}
         </div>
       </div>
