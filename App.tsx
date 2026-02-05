@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Room, RoomStatus, RoomType, BookingSource, Guest, RoomHistoryEntry } from './types';
 import { RoomCard } from './components/RoomCard';
@@ -569,7 +567,7 @@ export default function App() {
             </div>
             
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 text-center">
-            <p className="text-[10px] text-slate-400">© 2026 MINHTAM HotelOS</p>
+            <p className="text-[10px] text-slate-400">© 2026 Zukoforge.com</p>
             </div>
         </div>
       )}
