@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Room, RoomStatus, RoomType, BookingSource, Guest } from './types';
+import { Room, RoomStatus, RoomType, BookingSource, Guest, RoomHistoryEntry } from './types';
 import { RoomCard } from './components/RoomCard';
 import { RoomDetailPanel } from './components/RoomDetailPanel';
 import { OccupancyGauge } from './components/OccupancyGauge';
@@ -58,6 +58,24 @@ const generateInitialRooms = (): Room[] => {
         salePrice = basePrice * (Math.random() > 0.5 ? 1 : 0.9); 
     }
 
+    // Generate some random history for demo
+    const history: RoomHistoryEntry[] = [];
+    if (status === RoomStatus.OCCUPIED) {
+        history.push({
+            date: new Date().toISOString(),
+            action: 'CHECK_IN',
+            description: `Guest checked in: ${"John Doe"}`,
+            staffName: 'Reception'
+        });
+    } else if (status === RoomStatus.DIRTY) {
+         history.push({
+            date: new Date(Date.now() - 3600000 * 2).toISOString(),
+            action: 'CHECK_OUT',
+            description: `Guest checked out`,
+            staffName: 'Reception'
+        });
+    }
+
     const room: Room = {
       id: `room-${i + 1}`,
       number: `${100 + i + 1}`,
@@ -72,6 +90,7 @@ const generateInitialRooms = (): Room[] => {
       checkOutDate: status === RoomStatus.OCCUPIED ? formatDate(checkOut) : undefined,
       bookingSource: source,
       isIdScanned: isIdScanned,
+      history: history
     };
 
     return room;

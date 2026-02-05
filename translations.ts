@@ -1,4 +1,5 @@
 
+
 import { RoomStatus, RoomType, BookingSource } from './types';
 
 export type Language = 'en' | 'vi';
@@ -74,7 +75,20 @@ export const translations = {
       salePrice: "Sale Price (VND)",
       icalLabel: "Booking.com Calendar Link (iCal)",
       syncIcal: "Sync Calendar",
-      syncing: "Syncing..."
+      syncing: "Syncing...",
+      history: "Room History",
+      noHistory: "No history available",
+      manualOverride: "Manual Status Override",
+      workflowActions: "Workflow Actions"
+    },
+    workflow: {
+      markClean: "Mark Room Clean",
+      startMaintenance: "Start Maintenance",
+      finishMaintenance: "Complete Maintenance",
+      blockRoom: "Block / Reserve",
+      checkIn: "Process Check-In",
+      checkOut: "Process Check-Out",
+      cancelRes: "Cancel Reservation"
     },
     card: {
         in: "In",
@@ -233,7 +247,20 @@ export const translations = {
       salePrice: "Giá bán (VND)",
       icalLabel: "Liên kết Lịch Booking.com (iCal)",
       syncIcal: "Đồng bộ Lịch",
-      syncing: "Đang đồng bộ..."
+      syncing: "Đang đồng bộ...",
+      history: "Lịch sử phòng",
+      noHistory: "Chưa có lịch sử",
+      manualOverride: "Ghi đè trạng thái",
+      workflowActions: "Quy trình xử lý"
+    },
+    workflow: {
+      markClean: "Xác nhận đã dọn",
+      startMaintenance: "Bắt đầu bảo trì",
+      finishMaintenance: "Hoàn tất bảo trì",
+      blockRoom: "Khóa phòng",
+      checkIn: "Làm thủ tục nhận phòng",
+      checkOut: "Làm thủ tục trả phòng",
+      cancelRes: "Hủy đặt phòng"
     },
     card: {
         in: "Vào",

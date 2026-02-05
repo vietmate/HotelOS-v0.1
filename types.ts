@@ -1,4 +1,5 @@
 
+
 export enum RoomStatus {
   AVAILABLE = 'AVAILABLE',
   OCCUPIED = 'OCCUPIED',
@@ -39,6 +40,13 @@ export interface Guest {
   notes?: string;
 }
 
+export interface RoomHistoryEntry {
+  date: string;
+  action: 'CHECK_IN' | 'CHECK_OUT' | 'STATUS_CHANGE' | 'MAINTENANCE' | 'INFO';
+  description: string;
+  staffName?: string; // Optional: who performed the action
+}
+
 export interface Room {
   id: string;
   number: string;
@@ -61,6 +69,7 @@ export interface Room {
   upcomingReservation?: Reservation;
   isIdScanned?: boolean; // KBTTT Compliance
   icalUrl?: string; // Booking.com Calendar Link
+  history?: RoomHistoryEntry[];
 }
 
 export interface OccupancyData {

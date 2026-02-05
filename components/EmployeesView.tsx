@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Employee, TimeEntry, EmployeeRole } from '../types';
 import { translations, Language } from '../translations';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
-import { User, Users, Plus, Clock, Briefcase, History, Check, X, Shield, Wrench, Sparkles, Filter, Calendar, Search, Edit2, Trash2 } from 'lucide-react';
+import { User, Users, Plus, Briefcase, History, X, Shield, Wrench, Sparkles, Search, Edit2, Trash2 } from 'lucide-react';
 
 interface EmployeesViewProps {
   lang: Language;
@@ -33,7 +33,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
   const [newEmp, setNewEmp] = useState<Partial<Employee>>({
     name: '',
     role: 'Reception',
-    hourlyRate: 25000
+    hourlyRate: 0
   });
 
   const [entryForm, setEntryForm] = useState<{
@@ -94,14 +94,14 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
         id: Date.now().toString(),
         name: newEmp.name,
         role: newEmp.role as EmployeeRole,
-        hourlyRate: newEmp.hourlyRate || 0,
+        hourlyRate: 0,
         isWorking: false,
         phone: ''
     };
     const updated = [...employees, emp];
     await saveEmployees(updated);
     setIsAddingEmp(false);
-    setNewEmp({ name: '', role: 'Reception', hourlyRate: 25000 });
+    setNewEmp({ name: '', role: 'Reception', hourlyRate: 0 });
   };
 
   // --- Clock In/Out Logic ---
@@ -123,14 +123,8 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
      if (activeEntryIndex === -1) return;
 
      const entry = timeEntries[activeEntryIndex];
-     const start = new Date(entry.clockIn);
-     const diffMs = now.getTime() - start.getTime();
-     const diffHrs = diffMs / (1000 * 60 * 60);
-
-     const emp = employees.find(e => e.id === empId);
-     const pay = emp?.hourlyRate ? Math.round(diffHrs * emp.hourlyRate) : 0;
-
-     const updatedEntry = { ...entry, clockOut: now.toISOString(), totalPay: pay };
+     
+     const updatedEntry = { ...entry, clockOut: now.toISOString(), totalPay: 0 };
      const updatedEntries = [...timeEntries];
      updatedEntries[activeEntryIndex] = updatedEntry;
 
@@ -174,12 +168,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
       const startDate = new Date(entryForm.start);
       const endDate = entryForm.end ? new Date(entryForm.end) : undefined;
       
-      let pay = 0;
-      if (endDate && emp.hourlyRate) {
-          const diffHrs = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
-          pay = Math.max(0, Math.round(diffHrs * emp.hourlyRate));
-      }
-
       let updatedEntries = [...timeEntries];
       let updatedEmps = [...employees];
 
@@ -192,7 +180,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                       employeeId: entryForm.employeeId,
                       clockIn: startDate.toISOString(),
                       clockOut: endDate?.toISOString(),
-                      totalPay: pay
+                      totalPay: 0
                   };
               }
               return e;
@@ -214,7 +202,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
               employeeId: entryForm.employeeId,
               clockIn: startDate.toISOString(),
               clockOut: endDate?.toISOString(),
-              totalPay: pay
+              totalPay: 0
           };
           updatedEntries = [newEntry, ...updatedEntries];
           
@@ -280,10 +268,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
       return `${hrs}h ${mins}m`;
   };
 
-  const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat(lang === 'vi' ? 'vi-VN' : 'en-US', { style: 'currency', currency: 'VND' }).format(amount);
-  };
-
   const getRoleIcon = (role: EmployeeRole) => {
       switch(role) {
           case 'Manager': return <Briefcase className="w-4 h-4 text-purple-500" />;
@@ -322,7 +306,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                          />
                          <div className="flex gap-2">
                              <select 
-                                className="w-1/2 p-2 text-sm border rounded dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                                className="w-full p-2 text-sm border rounded dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                                 value={newEmp.role}
                                 onChange={e => setNewEmp({...newEmp, role: e.target.value as EmployeeRole})}
                              >
@@ -332,13 +316,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                                  <option value="Security">Security</option>
                                  <option value="Manager">Manager</option>
                              </select>
-                             <input 
-                                type="number"
-                                className="w-1/2 p-2 text-sm border rounded dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                                placeholder={t.employees.rate}
-                                value={newEmp.hourlyRate}
-                                onChange={e => setNewEmp({...newEmp, hourlyRate: parseInt(e.target.value)})}
-                             />
                          </div>
                          <div className="flex gap-2 justify-end">
                              <button onClick={() => setIsAddingEmp(false)} className="text-xs font-bold text-slate-500">{t.employees.cancel}</button>
@@ -458,7 +435,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                           <th className="px-4 py-3">{t.employees.clockIn}</th>
                           <th className="px-4 py-3">{t.employees.clockOut}</th>
                           <th className="px-4 py-3">{t.employees.duration}</th>
-                          <th className="px-4 py-3 text-right">{t.employees.totalPay}</th>
                           <th className="px-4 py-3 text-center w-20">Actions</th>
                       </tr>
                   </thead>
@@ -490,9 +466,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                                   <td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-400">
                                       {formatDuration(entry.clockIn, entry.clockOut)}
                                   </td>
-                                  <td className="px-4 py-3 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
-                                      {isActive ? '-' : formatMoney(entry.totalPay || 0)}
-                                  </td>
                                   <td className="px-4 py-3 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                       <button 
                                         onClick={() => openEntryModal(entry)}
@@ -514,7 +487,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang }) => {
                       })}
                       {filteredEntries.length === 0 && (
                           <tr>
-                              <td colSpan={6} className="px-4 py-8 text-center text-slate-400 italic">No shifts found matching your filters.</td>
+                              <td colSpan={5} className="px-4 py-8 text-center text-slate-400 italic">No shifts found matching your filters.</td>
                           </tr>
                       )}
                   </tbody>

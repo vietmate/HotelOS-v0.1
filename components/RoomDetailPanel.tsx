@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Room, RoomStatus, BookingSource, Guest } from '../types';
-import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck } from 'lucide-react';
+import { Room, RoomStatus, BookingSource, Guest, RoomHistoryEntry } from '../types';
+import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw } from 'lucide-react';
 import { generateWelcomeMessage, getMaintenanceAdvice } from '../services/geminiService';
 import { translations, Language } from '../translations';
 import { GuestFinder } from './GuestFinder';
@@ -107,6 +107,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState<string>('');
   const [showConfig, setShowConfig] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   
   const t = translations[lang];
 
@@ -141,9 +142,15 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
           nextRoom.salePrice = nextRoom.price;
       }
 
+      // Ensure history array exists
+      if (!nextRoom.history) {
+        nextRoom.history = [];
+      }
+
       setEditedRoom(nextRoom);
       setAiResponse('');
       setShowConfig(false);
+      setShowHistory(false);
     }
   }, [room]);
 
@@ -151,9 +158,83 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
 
   const handleSave = () => {
     if (editedRoom) {
-      onUpdate(editedRoom);
+      // 1. Detect Changes for History Log
+      const newHistory: RoomHistoryEntry[] = [...(editedRoom.history || [])];
+      const now = new Date().toISOString();
+      let historyAdded = false;
+
+      // Status Change Check
+      if (room.status !== editedRoom.status) {
+         let action: RoomHistoryEntry['action'] = 'STATUS_CHANGE';
+         let desc = `Status changed: ${t.status[room.status]} -> ${t.status[editedRoom.status]}`;
+
+         // Infer Check-In/Check-Out
+         if (room.status === RoomStatus.AVAILABLE && editedRoom.status === RoomStatus.OCCUPIED) {
+             action = 'CHECK_IN';
+             desc = `Check-in: ${editedRoom.guestName || 'Unknown Guest'}`;
+         } else if (room.status === RoomStatus.OCCUPIED && (editedRoom.status === RoomStatus.DIRTY || editedRoom.status === RoomStatus.AVAILABLE)) {
+             action = 'CHECK_OUT';
+             desc = `Check-out: ${room.guestName || 'Unknown Guest'}`;
+         } else if (editedRoom.status === RoomStatus.MAINTENANCE) {
+             action = 'MAINTENANCE';
+             desc = `Maintenance reported: ${editedRoom.maintenanceIssue || 'No details'}`;
+         }
+
+         newHistory.unshift({ date: now, action, description: desc });
+         historyAdded = true;
+      }
+      
+      // Guest Name Correction (if not status change)
+      if (!historyAdded && room.guestName !== editedRoom.guestName && editedRoom.status === RoomStatus.OCCUPIED) {
+          newHistory.unshift({ 
+              date: now, 
+              action: 'INFO', 
+              description: `Guest details updated: ${editedRoom.guestName}` 
+          });
+      }
+
+      const roomToSave = { ...editedRoom, history: newHistory };
+      onUpdate(roomToSave);
       onClose();
     }
+  };
+
+  // Dedicated function for strict state machine transitions
+  const handleTransition = (targetStatus: RoomStatus, logAction: RoomHistoryEntry['action'], logDesc: string) => {
+      if (!editedRoom) return;
+
+      const newHistory = [...(editedRoom.history || [])];
+      newHistory.unshift({
+          date: new Date().toISOString(),
+          action: logAction,
+          description: logDesc
+      });
+
+      let updates: Partial<Room> = { status: targetStatus, history: newHistory };
+
+      // Logic for cleaning up data when leaving Occupied
+      if (editedRoom.status === RoomStatus.OCCUPIED && (targetStatus === RoomStatus.DIRTY || targetStatus === RoomStatus.AVAILABLE)) {
+          updates = {
+              ...updates,
+              guestName: undefined,
+              guestId: undefined,
+              isIdScanned: false,
+              checkInDate: undefined,
+              checkOutDate: undefined,
+              bookingSource: undefined,
+              maintenanceIssue: undefined,
+              salePrice: undefined
+          };
+      }
+      
+      // Logic for cleaning data when entering Available from Dirty
+      if (editedRoom.status === RoomStatus.DIRTY && targetStatus === RoomStatus.AVAILABLE) {
+           // Keep nothing
+      }
+
+      const roomToSave = { ...editedRoom, ...updates };
+      onUpdate(roomToSave);
+      onClose();
   };
 
   const handleGuestSelect = (guest: Guest) => {
@@ -186,6 +267,106 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
   const isOccupied = editedRoom.status === RoomStatus.OCCUPIED;
   const isMaintenance = editedRoom.status === RoomStatus.MAINTENANCE;
 
+  const renderHistoryIcon = (action: RoomHistoryEntry['action']) => {
+      switch(action) {
+          case 'CHECK_IN': return <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/50 rounded-full text-emerald-600"><ArrowRight className="w-3 h-3" /></div>;
+          case 'CHECK_OUT': return <div className="p-1.5 bg-rose-100 dark:bg-rose-900/50 rounded-full text-rose-600"><ArrowRight className="w-3 h-3 rotate-180" /></div>;
+          case 'MAINTENANCE': return <div className="p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-full text-amber-600"><WrenchIcon /></div>;
+          default: return <div className="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-full text-slate-500"><History className="w-3 h-3" /></div>;
+      }
+  };
+
+  // --- State Machine Workflow Buttons ---
+  const renderWorkflowActions = () => {
+    const status = editedRoom.status;
+
+    if (status === RoomStatus.DIRTY) {
+      return (
+        <div className="grid grid-cols-2 gap-3 mb-6">
+            <button 
+                onClick={() => handleTransition(RoomStatus.AVAILABLE, 'STATUS_CHANGE', 'Room cleaned and marked Available')}
+                className="flex flex-col items-center justify-center p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors group"
+            >
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-800 rounded-full text-emerald-600 dark:text-emerald-300 mb-1 group-hover:scale-110 transition-transform">
+                    <Sparkles className="w-5 h-5" />
+                </div>
+                <span className="text-sm font-bold text-emerald-800 dark:text-emerald-200">{t.workflow.markClean}</span>
+            </button>
+             <button 
+                onClick={() => setEditedRoom({...editedRoom, status: RoomStatus.MAINTENANCE})}
+                className="flex flex-col items-center justify-center p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group"
+            >
+                 <div className="p-2 bg-slate-200 dark:bg-slate-700 rounded-full text-slate-600 dark:text-slate-300 mb-1 group-hover:scale-110 transition-transform">
+                    <WrenchIcon />
+                </div>
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{t.workflow.startMaintenance}</span>
+            </button>
+        </div>
+      );
+    }
+
+    if (status === RoomStatus.MAINTENANCE) {
+        return (
+            <div className="mb-6">
+                <button 
+                    onClick={() => handleTransition(RoomStatus.DIRTY, 'MAINTENANCE', 'Maintenance completed. Room needs cleaning.')}
+                    className="w-full flex items-center justify-center gap-2 p-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md transition-all font-bold"
+                >
+                    <Check className="w-5 h-5" /> {t.workflow.finishMaintenance}
+                </button>
+            </div>
+        );
+    }
+
+    if (status === RoomStatus.OCCUPIED) {
+         return (
+            <div className="mb-6">
+                <button 
+                    onClick={() => handleTransition(RoomStatus.DIRTY, 'CHECK_OUT', `Check-out processed: ${editedRoom.guestName}`)}
+                    className="w-full flex items-center justify-center gap-2 p-4 bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-xl hover:bg-rose-100 dark:hover:bg-rose-900/40 shadow-sm transition-all font-bold"
+                >
+                    <ArrowRight className="w-5 h-5" /> {t.workflow.checkOut}
+                </button>
+            </div>
+        );
+    }
+
+    if (status === RoomStatus.AVAILABLE) {
+        // For available, we usually show the guest form, but we can offer Maintenance blocking
+        return (
+             <div className="flex justify-end mb-4">
+                 <button 
+                    onClick={() => setEditedRoom({...editedRoom, status: RoomStatus.MAINTENANCE})}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-lg transition-colors"
+                 >
+                    <ShieldAlert className="w-3.5 h-3.5" /> {t.workflow.startMaintenance}
+                 </button>
+             </div>
+        );
+    }
+
+    if (status === RoomStatus.RESERVED) {
+        return (
+            <div className="grid grid-cols-2 gap-3 mb-6">
+                <button 
+                    onClick={() => setEditedRoom({...editedRoom, status: RoomStatus.OCCUPIED})}
+                    className="flex items-center justify-center gap-2 p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors"
+                >
+                    <UserCheck className="w-4 h-4" /> {t.workflow.checkIn}
+                </button>
+                <button 
+                    onClick={() => handleTransition(RoomStatus.AVAILABLE, 'STATUS_CHANGE', 'Reservation Cancelled')}
+                    className="flex items-center justify-center gap-2 p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                    <X className="w-4 h-4" /> {t.workflow.cancelRes}
+                </button>
+            </div>
+        )
+    }
+
+    return null;
+  };
+
   return (
     <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-white dark:bg-slate-900 shadow-2xl transform transition-transform duration-300 ease-in-out border-l border-slate-200 dark:border-slate-800 z-50 overflow-y-auto">
       <div className="p-6 pb-24">
@@ -204,18 +385,23 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
           </button>
         </div>
 
-        {/* Status Selector */}
-        <div className="mb-6">
-          <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-2">{t.detail.currentStatus}</label>
-          <select 
-            value={editedRoom.status}
-            onChange={(e) => setEditedRoom({...editedRoom, status: e.target.value as RoomStatus})}
-            className="w-full p-3 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm font-medium"
-          >
-            {Object.values(RoomStatus).map((status) => (
-              <option key={status} value={status}>{t.status[status]}</option>
-            ))}
-          </select>
+        {/* State Machine Workflow Area */}
+        {renderWorkflowActions()}
+
+        {/* Manual Override & Current Status Display */}
+        <div className="mb-6 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+             <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.detail.manualOverride}</label>
+             </div>
+             <select 
+                value={editedRoom.status}
+                onChange={(e) => setEditedRoom({...editedRoom, status: e.target.value as RoomStatus})}
+                className="w-full mt-2 p-2 border border-slate-200 dark:border-slate-600 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-medium"
+            >
+                {Object.values(RoomStatus).map((status) => (
+                <option key={status} value={status}>{t.status[status]}</option>
+                ))}
+            </select>
         </div>
 
         {/* Upcoming Reservation Banner */}
@@ -247,7 +433,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
           
           {/* Check In / Guest Info */}
           {(canCheckIn || isOccupied) && (
-            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm animate-in fade-in slide-in-from-bottom-4">
               <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                 <UserCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> {t.detail.guestInfo}
               </h3>
@@ -425,7 +611,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
 
           {/* Maintenance Section */}
           {isMaintenance && (
-             <div className="bg-rose-50 dark:bg-rose-900/20 p-4 rounded-xl border border-rose-200 dark:border-rose-800/50 shadow-sm">
+             <div className="bg-rose-50 dark:bg-rose-900/20 p-4 rounded-xl border border-rose-200 dark:border-rose-800/50 shadow-sm animate-in fade-in slide-in-from-bottom-4">
                <h3 className="text-lg font-bold text-rose-800 dark:text-rose-400 mb-4 flex items-center gap-2">
                  <WrenchIcon /> {t.detail.maintenance}
                </h3>
@@ -458,6 +644,54 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                 )}
              </div>
           )}
+
+          {/* Collapsible History Section */}
+          <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+             <button 
+                onClick={() => setShowHistory(!showHistory)}
+                className="w-full p-4 flex items-center justify-between bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+             >
+                <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
+                   <History className="w-4 h-4" /> {t.detail.history}
+                </div>
+                <div className={`transform transition-transform text-slate-600 dark:text-slate-400 ${showHistory ? 'rotate-180' : ''}`}>
+                    <ArrowDown className="w-4 h-4" />
+                </div>
+             </button>
+             
+             {showHistory && (
+                <div className="p-0 bg-white dark:bg-slate-800 max-h-60 overflow-y-auto">
+                    {(!editedRoom.history || editedRoom.history.length === 0) ? (
+                        <div className="p-4 text-center text-slate-400 text-xs italic">{t.detail.noHistory}</div>
+                    ) : (
+                        <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                            {editedRoom.history.map((entry, idx) => (
+                                <div key={idx} className="p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex gap-3">
+                                    <div className="flex-shrink-0 mt-0.5">
+                                        {renderHistoryIcon(entry.action)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{entry.description}</div>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                                {new Date(entry.date).toLocaleString(undefined, { 
+                                                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                                                })}
+                                            </span>
+                                            {entry.staffName && (
+                                                <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1 rounded text-slate-600 dark:text-slate-300">
+                                                    {entry.staffName}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+             )}
+          </div>
 
           {/* Collapsible Configuration Section */}
           <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
@@ -517,30 +751,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
              >
                <Save className="w-4 h-4" /> {t.detail.save}
              </button>
-             
-             {isOccupied && (
-                <button 
-                  onClick={() => {
-                    setEditedRoom({
-                      ...editedRoom, 
-                      status: RoomStatus.DIRTY, 
-                      guestName: undefined, 
-                      checkInDate: undefined, 
-                      checkOutDate: undefined,
-                      notes: '',
-                      maintenanceIssue: undefined,
-                      bookingSource: undefined,
-                      isIdScanned: false,
-                      salePrice: undefined,
-                      guestId: undefined,
-                    });
-                  }}
-                  className="px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg font-bold hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-800 transition-all shadow-sm"
-                  title={t.detail.checkOutBtn}
-                >
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-             )}
           </div>
 
         </div>
