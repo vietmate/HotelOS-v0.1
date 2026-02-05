@@ -13,7 +13,7 @@ import { NotesView } from './components/NotesView';
 import { GuestFinder } from './components/GuestFinder';
 import { EmployeesView } from './components/EmployeesView';
 import { MobileDashboard } from './components/MobileDashboard';
-import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, TriangleAlert, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning, Moon, Sun, X, Users, Smartphone, LayoutTemplate, RotateCcw, Lock } from 'lucide-react';
+import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning, Moon, Sun, X, Users, Smartphone, LayoutTemplate, RotateCcw, Lock } from 'lucide-react';
 import { translations, Language } from './translations';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 
@@ -62,7 +62,7 @@ const generateInitialRooms = (): Room[] => {
         history.push({
             date: new Date().toISOString(),
             action: 'CHECK_IN',
-            description: `Guest checked in: ${"John Doe"}`,
+            description: `Guest checked in: John Doe`,
             staffName: 'Reception'
         });
     } else if (status === RoomStatus.DIRTY) {
@@ -149,7 +149,6 @@ export default function App() {
     const fetchData = async () => {
         setIsLoading(true);
         
-        // 1. Initial Load from LocalStorage for Speed
         const savedRooms = localStorage.getItem(STORAGE_KEY_ROOMS);
         const savedEmp = localStorage.getItem(STORAGE_KEY_EMPLOYEES);
         const savedTime = localStorage.getItem(STORAGE_KEY_TIME_ENTRIES);
@@ -168,7 +167,6 @@ export default function App() {
         }
 
         try {
-            // 2. Sync Rooms
             const { data: roomsData } = await supabase.from('rooms').select('*').order('id');
             if (roomsData && roomsData.length > 0) {
                 const parsedRooms = roomsData.map(r => r.data as Room).sort((a,b) => parseInt(a.number) - parseInt(b.number));
@@ -176,7 +174,6 @@ export default function App() {
                 localStorage.setItem(STORAGE_KEY_ROOMS, JSON.stringify(parsedRooms));
             }
 
-            // 3. Sync Employees
             const { data: empData } = await supabase.from('employees').select('*');
             if (empData && empData.length > 0) {
                 const cloudEmployees = empData.map(r => r.data as Employee);
@@ -184,7 +181,6 @@ export default function App() {
                 localStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(cloudEmployees));
             }
 
-            // 4. Sync Time Entries
             const { data: timeData } = await supabase.from('time_entries').select('*').order('created_at', { ascending: false });
             if (timeData && timeData.length > 0) {
                 const cloudEntries = timeData.map(r => r.data as TimeEntry);
@@ -192,7 +188,6 @@ export default function App() {
                 localStorage.setItem(STORAGE_KEY_TIME_ENTRIES, JSON.stringify(cloudEntries));
             }
 
-            // 5. Sync Settings
             const { data: settingsData } = await supabase.from('app_settings').select('*');
             if (settingsData) {
                 const nameSetting = settingsData.find(s => s.key === 'hotel_name');
@@ -338,14 +333,14 @@ export default function App() {
      if (!hasAlerts) {
          return isReordering ? (
              <div className="mb-6 p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-1">
-                 <TriangleAlert className="w-4 h-4 opacity-50" /> {t.alerts.placeholder}
+                 <AlertTriangle className="w-4 h-4 opacity-50" /> {t.alerts.placeholder}
              </div>
          ) : null;
      }
      return (
         <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/50 rounded-xl animate-in fade-in slide-in-from-top-4">
             <h3 className="flex items-center gap-2 text-red-800 dark:text-red-400 font-bold text-sm mb-3">
-                <TriangleAlert className="w-4 h-4" /> {t.alerts.title}
+                <AlertTriangle className="w-4 h-4" /> {t.alerts.title}
             </h3>
             <div className="space-y-2">
                 {alerts.overdue > 0 && (
@@ -524,9 +519,9 @@ export default function App() {
       )}
       {isResetModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700">
+             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700">
                   <div className="p-6">
-                      <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4"><TriangleAlert className="w-6 h-6" /></div>
+                      <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle className="w-6 h-6" /></div>
                       <h3 className="font-bold text-xl text-center text-slate-900 dark:text-white mb-2">{t.admin.resetTitle}</h3>
                       <p className="text-center text-sm text-slate-500 dark:text-slate-400 mb-6">{t.admin.warning}</p>
                       <div className="relative mb-4"><Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input type="password" placeholder={t.admin.passwordPlaceholder} value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} className="w-full pl-9 p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none" autoFocus /></div>

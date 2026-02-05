@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Room, RoomStatus, RoomType } from '../types';
-import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, TriangleAlert, Calendar, CheckSquare, Square, FileCheck, DollarSign } from 'lucide-react';
+import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, AlertTriangle, Calendar, CheckSquare, Square, FileCheck, DollarSign } from 'lucide-react';
 import { translations, Language } from '../translations';
 
 interface RoomCardProps {
@@ -141,7 +141,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
                         ? 'bg-emerald-100/50 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-200/50 dark:border-emerald-800/50' 
                         : 'bg-rose-100/80 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'}`}
                 >
-                    {room.isIdScanned ? <FileCheck className="w-2.5 h-2.5" /> : <TriangleAlert className="w-2.5 h-2.5" />}
+                    {room.isIdScanned ? <FileCheck className="w-2.5 h-2.5" /> : <AlertTriangle className="w-2.5 h-2.5" />}
                     <span>{room.isIdScanned ? t.card.kbtttOk : t.card.kbtttMissing}</span>
                 </div>
               </div>
@@ -182,7 +182,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
               absolute -top-2 -right-2 px-2 py-1 rounded-full text-[10px] font-bold shadow-sm border flex items-center gap-1
               ${checkoutStatus === 'overdue' ? 'bg-rose-600 text-white border-rose-700 animate-pulse' : 'bg-amber-400 text-amber-900 border-amber-500'}
           `}>
-              {checkoutStatus === 'overdue' ? <TriangleAlert className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+              {checkoutStatus === 'overdue' ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
               {checkoutStatus === 'overdue' ? t.card.overdue : t.card.checkoutSoon}
           </div>
       )}
