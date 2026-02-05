@@ -202,7 +202,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang, employees, o
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col h-full overflow-hidden">
              <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
                  <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2"><Users className="w-5 h-5 text-indigo-600" /> {t.employees.title}</h3>
-                 <button onClick={() => setIsAddingEmp(true)} className="p-1.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-200 transition-colors"><Plus className="w-4 h-4" /></button>
+                 <button onClick={() => setIsAddingEmp(true)} className="p-1.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 transition-colors"><Plus className="w-4 h-4" /></button>
              </div>
              {isAddingEmp && (
                  <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-indigo-50/50 dark:bg-indigo-900/10 animate-in slide-in-from-top-2">
@@ -298,4 +298,12 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang, employees, o
                   <div className="p-4 space-y-4">
                       <div><label className="block text-xs uppercase text-slate-500 dark:text-slate-400 font-bold mb-1">{t.employees.name}</label><input className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white text-sm" value={editingEmployee.name} onChange={e => setEditingEmployee({...editingEmployee, name: e.target.value})} /></div>
                       <div><label className="block text-xs uppercase text-slate-500 dark:text-slate-400 font-bold mb-1">{t.employees.role}</label><select className="w-full p-2 text-sm border border-slate-300 rounded bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={editingEmployee.role} onChange={e => setEditingEmployee({...editingEmployee, role: e.target.value as EmployeeRole})}><option value="Reception">Reception</option><option value="Housekeeping">Housekeeping</option><option value="Maintenance">Maintenance</option><option value="Security">Security</option><option value="Manager">Manager</option></select></div>
-                      <div><label className="block text-xs uppercase text-slate-500 dark:text-slate-400 font-bold mb-1">{t.employees.adjustReviews} ({leaderboardDate.toLocaleDateString(undefined, {month:'short'})})</label><div className="
+                      <div><label className="block text-xs uppercase text-slate-500 dark:text-slate-400 font-bold mb-1">{t.employees.adjustReviews} ({leaderboardDate.toLocaleDateString(undefined, {month:'short'})})</label><div className="flex items-center gap-2"><div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-lg text-amber-600 dark:text-amber-400"><Star className="w-4 h-4 fill-current" /></div><input type="number" min="0" className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white text-sm" value={getReviewCount(editingEmployee, currentMonthKey)} onChange={e => { const val = parseInt(e.target.value) || 0; setEditingEmployee({ ...editingEmployee, reviewsHistory: { ...(editingEmployee.reviewsHistory || {}), [currentMonthKey]: val } }); }} /></div></div>
+                      <div className="pt-2"><button onClick={handleUpdateEmployee} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors">{t.employees.save}</button></div>
+                  </div>
+              </div>
+          </div>
+      )}
+    </div>
+  );
+};
