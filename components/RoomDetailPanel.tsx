@@ -242,6 +242,10 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
           newHistory.unshift({ date: now, action: 'INFO', description: `Guest details updated: ${updatedRoom.guestName}` });
       }
 
+      if (!historyAdded && (room.number !== updatedRoom.number || room.name !== updatedRoom.name)) {
+          newHistory.unshift({ date: now, action: 'INFO', description: `Room config updated: ${updatedRoom.number} ${updatedRoom.name || ''}` });
+      }
+
       const roomToSave = { ...updatedRoom, history: newHistory };
       onUpdate(roomToSave);
       onClose();
@@ -730,15 +734,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                             <div className="space-y-4 animate-in fade-in">
                                 <div>
                                     <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.roomName}</label>
-                                    <input 
-                                        type="text" 
-                                        value={editedRoom.number} 
-                                        onChange={(e) => setEditedRoom({...editedRoom, number: e.target.value})} 
-                                        className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white text-sm font-medium"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.roomNumber}</label>
                                     <input 
                                         type="text" 
                                         value={editedRoom.name || ''} 

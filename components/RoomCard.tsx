@@ -97,7 +97,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
     >
       <div className="flex justify-between items-start mb-2">
         <span className="text-xl font-bold truncate pr-2" title={room.name || room.number}>
-          {room.number}
+          {room.name || room.number}
         </span>
         <div className="opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0">
             {getStatusIcon(room.status)}
