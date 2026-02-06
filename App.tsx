@@ -383,6 +383,7 @@ export default function App() {
           case 'alerts': return renderAlertsWidget();
           case 'occupancy': return <div className="mb-8 flex flex-col items-center"><OccupancyGauge percentage={occupancyPercentage} label={t.occupancy} /></div>;
           case 'stats': return <div className="mb-8"><h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-4">{t.roomStatus}</h3><StatsChart rooms={rooms} lang={lang} /></div>;
+          default: return null;
       }
   };
 
@@ -506,7 +507,6 @@ export default function App() {
                                 <button onClick={() => setViewMode('employees')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'employees' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><Users className="w-4 h-4" /> {t.views.employees}</button>
                             </div>
                             
-                            {/* COMPACT CLOCK DISPLAY */}
                             <div className="hidden sm:flex items-center gap-3 px-3 py-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200/50 dark:border-slate-800/50 text-slate-500 dark:text-slate-400">
                                 <div className="flex items-center gap-1.5">
                                     <Clock className="w-3.5 h-3.5 text-indigo-500" />

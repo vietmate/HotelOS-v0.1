@@ -31,6 +31,7 @@ const getStatusIcon = (status: RoomStatus) => {
     case RoomStatus.DIRTY: return <SprayCan className="w-5 h-5" />;
     case RoomStatus.MAINTENANCE: return <Wrench className="w-5 h-5" />;
     case RoomStatus.RESERVED: return <CalendarCheck className="w-5 h-5" />;
+    default: return null;
   }
 };
 
@@ -58,7 +59,7 @@ const formatPriceShort = (price: number) => {
     return price.toString();
 }
 
-export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
+const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
   const t = translations[lang];
   const showDates = (room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && (room.checkInDate || room.checkOutDate);
 
@@ -81,10 +82,12 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
       else if (diffMins < 120) checkoutStatus = 'soon'; 
   }
 
-  // Find the closest future reservation
   const closestFuture = room.futureReservations && room.futureReservations.length > 0 
       ? [...room.futureReservations].sort((a, b) => a.checkInDate.localeCompare(b.checkInDate))[0]
       : null;
+
+  // Show primary guest name for both Occupied and Reserved status
+  const isDirectlyBooked = (room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && room.guestName;
 
   return (
     <div 
@@ -122,7 +125,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
       </div>
 
       <div className="text-sm truncate min-h-[32px] mb-2">
-        {room.status === RoomStatus.OCCUPIED && room.guestName ? (
+        {isDirectlyBooked ? (
           <div className="space-y-2">
               <div className="flex items-center">
                   <span className="px-2.5 py-1 rounded-lg border border-current/20 bg-white/40 dark:bg-black/20 font-bold text-sm block truncate flex-1 shadow-sm">
@@ -135,7 +138,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
                         {t.sources[room.bookingSource]}
                     </span>
                 )}
-                {room.invoiceStatus && room.invoiceStatus !== InvoiceStatus.NONE && (
+                {room.status === RoomStatus.OCCUPIED && room.invoiceStatus && room.invoiceStatus !== InvoiceStatus.NONE && (
                     <div 
                         className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md font-bold border
                         ${room.invoiceStatus === InvoiceStatus.PROVIDED 
@@ -146,15 +149,17 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
                         <span>{room.invoiceStatus === InvoiceStatus.PROVIDED ? t.card.invoiceOk : t.card.invoicePending}</span>
                     </div>
                 )}
-                <div 
-                    className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md font-bold border
-                    ${room.isIdScanned 
-                        ? 'bg-emerald-100/50 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-200/50 dark:border-emerald-800/50' 
-                        : 'bg-rose-100/80 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'}`}
-                >
-                    {room.isIdScanned ? <FileCheck className="w-2.5 h-2.5" /> : <AlertTriangle className="w-2.5 h-2.5" />}
-                    <span>{room.isIdScanned ? t.card.kbtttOk : t.card.kbtttMissing}</span>
-                </div>
+                {room.status === RoomStatus.OCCUPIED && (
+                  <div 
+                      className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md font-bold border
+                      ${room.isIdScanned 
+                          ? 'bg-emerald-100/50 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-200/50 dark:border-emerald-800/50' 
+                          : 'bg-rose-100/80 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'}`}
+                  >
+                      {room.isIdScanned ? <FileCheck className="w-2.5 h-2.5" /> : <AlertTriangle className="w-2.5 h-2.5" />}
+                      <span>{room.isIdScanned ? t.card.kbtttOk : t.card.kbtttMissing}</span>
+                  </div>
+                )}
               </div>
           </div>
         ) : (
@@ -182,8 +187,10 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
       {closestFuture && (room.status === RoomStatus.DIRTY || room.status === RoomStatus.AVAILABLE) && (
           <div className="mt-auto pt-2 border-t border-black/5 dark:border-white/10">
               <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded text-[10px] font-bold">
-                  <Calendar className="w-3 h-3" />
-                  <span className="truncate flex-1">Next: {formatDate(closestFuture.checkInDate)}</span>
+                  <Calendar className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate flex-1">
+                      {closestFuture.guestName} ({formatDate(closestFuture.checkInDate)})
+                  </span>
               </div>
           </div>
       )}
@@ -200,3 +207,5 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
     </div>
   );
 };
+
+export { RoomCard };
