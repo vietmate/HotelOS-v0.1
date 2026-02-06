@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Room, RoomStatus, BookingSource, Guest, RoomHistoryEntry, Booking, BookingType, Reservation } from '../types';
-import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon } from 'lucide-react';
+import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon, Lock, Unlock } from 'lucide-react';
 import { generateWelcomeMessage, getMaintenanceAdvice } from '../services/geminiService';
 import { hasBookingConflict, isTimeSlotAvailable } from '../services/validationService';
 import { translations, Language } from '../translations';
@@ -80,6 +80,10 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
   const [showConfig, setShowConfig] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   
+  // Admin Config Lock State
+  const [isConfigUnlocked, setIsConfigUnlocked] = useState(false);
+  const [configPass, setConfigPass] = useState('');
+
   // New Reservation Form State
   const [isAddingFutureRes, setIsAddingFutureRes] = useState(false);
   const [futureRes, setFutureRes] = useState<Partial<Reservation>>({});
@@ -133,6 +137,8 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
       setAiResponse('');
       setShowConfig(false);
       setShowHistory(false);
+      setIsConfigUnlocked(false);
+      setConfigPass('');
       setIsAddingFutureRes(false);
       
       // Initialize future reservation defaults
@@ -327,6 +333,14 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
     setAiLoading(false);
   };
 
+  const handleUnlockConfig = () => {
+    if (configPass === 'admin123') {
+        setIsConfigUnlocked(true);
+    } else {
+        alert(t.admin.wrongPass);
+    }
+  };
+
   const canCheckIn = editedRoom.status === RoomStatus.AVAILABLE || editedRoom.status === RoomStatus.RESERVED;
   const isOccupied = editedRoom.status === RoomStatus.OCCUPIED;
   const isMaintenance = editedRoom.status === RoomStatus.MAINTENANCE;
@@ -365,11 +379,13 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
 
         {renderWorkflowActions()}
 
-        <div className="mb-6 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
-             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.detail.manualOverride}</label>
-             <select value={editedRoom.status} onChange={(e) => setEditedRoom({...editedRoom, status: e.target.value as RoomStatus})} className="w-full mt-2 p-2 border border-slate-200 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-medium">
-                {Object.values(RoomStatus).map((status) => <option key={status} value={status}>{t.status[status]}</option>)}
-            </select>
+        <div className="flex flex-col gap-3 mb-6">
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.detail.manualOverride}</label>
+                 <select value={editedRoom.status} onChange={(e) => setEditedRoom({...editedRoom, status: e.target.value as RoomStatus})} className="w-full mt-2 p-2 border border-slate-200 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-medium">
+                    {Object.values(RoomStatus).map((status) => <option key={status} value={status}>{t.status[status]}</option>)}
+                </select>
+            </div>
         </div>
 
         <div className="mb-6 space-y-3">
@@ -443,7 +459,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                             type="number"
                             value={editedRoom.salePrice}
                             onChange={(e) => setEditedRoom({...editedRoom, salePrice: parseFloat(e.target.value) || 0})}
-                            className="w-full p-2 pl-8 pr-12 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-mono text-sm"
+                            className="w-full p-2 pl-8 pr-12 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-sm"
                        />
                        <DollarSign className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">VND</span>
@@ -567,6 +583,77 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                 </div>
              )}
           </div>
+
+          {/* Room Configuration Section (Admin Locked & Relocated to Bottom) */}
+          <div className="border border-amber-200 dark:border-amber-900 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-slate-800">
+                 <button onClick={() => setShowConfig(!showConfig)} className="w-full p-4 flex items-center justify-between bg-amber-50 dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-slate-700 transition-colors">
+                    <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-400">
+                        {isConfigUnlocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />} {t.detail.config}
+                    </div>
+                    <div className={`transform transition-transform text-slate-600 dark:text-slate-400 ${showConfig ? 'rotate-180' : ''}`}><ArrowDown className="w-4 h-4" /></div>
+                 </button>
+                 {showConfig && (
+                    <div className="p-4 bg-amber-50/30 dark:bg-slate-900/50 space-y-4 animate-in slide-in-from-top-2">
+                        {!isConfigUnlocked ? (
+                            <div className="flex flex-col gap-3 py-2">
+                                <div className="text-xs font-bold text-amber-800 dark:text-amber-500 flex items-center gap-1">
+                                    <ShieldAlert className="w-3.5 h-3.5" /> Admin access required to change room basics
+                                </div>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="password" 
+                                        placeholder={t.admin.passwordPlaceholder} 
+                                        value={configPass}
+                                        onChange={(e) => setConfigPass(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleUnlockConfig()}
+                                        className="flex-1 p-2 text-sm border border-amber-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 dark:text-white"
+                                    />
+                                    <button 
+                                        onClick={handleUnlockConfig}
+                                        className="px-4 py-2 bg-amber-600 text-white rounded text-sm font-bold hover:bg-amber-700 transition-colors"
+                                    >
+                                        Unlock
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4 animate-in fade-in">
+                                <div>
+                                    <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.roomNumber}</label>
+                                    <input 
+                                        type="text" 
+                                        value={editedRoom.number} 
+                                        onChange={(e) => setEditedRoom({...editedRoom, number: e.target.value})} 
+                                        className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white text-sm font-medium"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.roomName}</label>
+                                    <input 
+                                        type="text" 
+                                        value={editedRoom.name || ''} 
+                                        placeholder="e.g. Lakeside Penthouse"
+                                        onChange={(e) => setEditedRoom({...editedRoom, name: e.target.value})} 
+                                        className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white text-sm font-medium"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.capacity}</label>
+                                    <div className="flex items-center gap-3">
+                                        <Users className="w-4 h-4 text-slate-400" />
+                                        <input 
+                                            type="number" 
+                                            value={editedRoom.capacity} 
+                                            onChange={(e) => setEditedRoom({...editedRoom, capacity: parseInt(e.target.value) || 1})} 
+                                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white text-sm font-medium"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                 )}
+            </div>
 
           <div className="flex gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
              <button onClick={handleSave} disabled={isAddingFutureRes && !futureRes.guestName} className={`flex-1 py-3 rounded-lg font-bold transition-all shadow-md flex items-center justify-center gap-2 ${isConflict ? 'bg-rose-600 text-white animate-pulse' : 'bg-indigo-600 text-white hover:bg-indigo-700'} ${isAddingFutureRes ? 'bg-purple-600 hover:bg-purple-700' : ''}`}>
