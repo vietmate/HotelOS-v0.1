@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Room, RoomStatus, BookingSource, Guest, RoomHistoryEntry, Booking, BookingType, Reservation, InvoiceStatus } from '../types';
-import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon, Lock, Unlock, FileText } from 'lucide-react';
+import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon, Lock, Unlock, FileText, LogIn, Pencil } from 'lucide-react';
 import { generateWelcomeMessage, getMaintenanceAdvice } from '../services/geminiService';
 import { hasBookingConflict, isTimeSlotAvailable } from '../services/validationService';
 import { translations, Language } from '../translations';
@@ -84,8 +84,9 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
   const [isConfigUnlocked, setIsConfigUnlocked] = useState(false);
   const [configPass, setConfigPass] = useState('');
 
-  // New Reservation Form State
+  // Future Reservation Form State
   const [isAddingFutureRes, setIsAddingFutureRes] = useState(false);
+  const [editingFutureResId, setEditingFutureResId] = useState<string | null>(null);
   const [futureRes, setFutureRes] = useState<Partial<Reservation>>({});
 
   const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
@@ -141,28 +142,34 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
       setIsConfigUnlocked(false);
       setConfigPass('');
       setIsAddingFutureRes(false);
+      setEditingFutureResId(null);
       
-      // Initialize future reservation defaults
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const dayAfter = new Date();
-      dayAfter.setDate(dayAfter.getDate() + 2);
-
-      const formatDate = (d: Date) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-      };
-
-      setFutureRes({
-        checkInDate: formatDate(tomorrow),
-        checkOutDate: formatDate(dayAfter),
-        checkInTime: '14:00',
-        checkOutTime: '12:00'
-      });
+      resetFutureResForm();
     }
   }, [room]);
+
+  const resetFutureResForm = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dayAfter = new Date();
+    dayAfter.setDate(dayAfter.getDate() + 2);
+
+    const formatDate = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    setFutureRes({
+      guestName: '',
+      checkInDate: formatDate(tomorrow),
+      checkOutDate: formatDate(dayAfter),
+      checkInTime: '14:00',
+      checkOutTime: '12:00',
+      source: BookingSource.WALK_IN
+    });
+  };
 
   useEffect(() => {
       if (!room || !editedRoom || !editedRoom.checkInDate || !editedRoom.checkOutDate) return;
@@ -195,42 +202,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
 
       let updatedRoom = { ...editedRoom };
 
-      // If we were adding a future reservation, merge it in
-      if (isAddingFutureRes && futureRes.guestName && futureRes.checkInDate && futureRes.checkOutDate) {
-          const newRes: Reservation = {
-              id: Date.now().toString(),
-              guestName: futureRes.guestName,
-              checkInDate: futureRes.checkInDate,
-              checkOutDate: futureRes.checkOutDate,
-              checkInTime: futureRes.checkInTime || '14:00',
-              checkOutTime: futureRes.checkOutTime || '12:00',
-              source: futureRes.source || BookingSource.WALK_IN
-          };
-          
-          updatedRoom.futureReservations = [...(updatedRoom.futureReservations || []), newRes];
-          
-          // Add history entry
-          const now = new Date().toISOString();
-          updatedRoom.history = [{
-              date: now,
-              action: 'INFO',
-              description: `Future reservation added for ${newRes.guestName} (${newRes.checkInDate} ${newRes.checkInTime})`
-          }, ...(updatedRoom.history || [])];
-
-          // Save to Supabase Bookings
-          if (isSupabaseConfigured()) {
-               await supabase.from('bookings').insert({
-                   room_id: updatedRoom.id,
-                   guest_name: newRes.guestName,
-                   check_in_at: new Date(`${newRes.checkInDate}T${newRes.checkInTime || '14:00'}:00`).toISOString(),
-                   check_out_at: new Date(`${newRes.checkOutDate}T${newRes.checkOutTime || '12:00'}:00`).toISOString(),
-                   booking_type: BookingType.STANDARD,
-                   status: 'RESERVED'
-               });
-          }
-      }
-
-      if (isSupabaseConfigured() && updatedRoom.status === RoomStatus.OCCUPIED && updatedRoom.guestName && !isAddingFutureRes) {
+      if (isSupabaseConfigured() && updatedRoom.status === RoomStatus.OCCUPIED && updatedRoom.guestName) {
            const startDateTime = `${updatedRoom.checkInDate}T${updatedRoom.checkInTime || '14:00'}:00`;
            const endDateTime = `${updatedRoom.checkOutDate}T${updatedRoom.checkOutTime || '12:00'}:00`;
            
@@ -276,6 +248,41 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
     }
   };
 
+  const applyFutureReservation = async () => {
+    if (!futureRes.guestName || !futureRes.checkInDate || !futureRes.checkOutDate) return;
+
+    let updatedList = [...(editedRoom.futureReservations || [])];
+    const resData: Reservation = {
+        id: editingFutureResId || Date.now().toString(),
+        guestName: futureRes.guestName,
+        checkInDate: futureRes.checkInDate,
+        checkOutDate: futureRes.checkOutDate,
+        checkInTime: futureRes.checkInTime || '14:00',
+        checkOutTime: futureRes.checkOutTime || '12:00',
+        source: futureRes.source || BookingSource.WALK_IN
+    };
+
+    if (editingFutureResId) {
+        updatedList = updatedList.map(r => r.id === editingFutureResId ? resData : r);
+    } else {
+        updatedList.push(resData);
+    }
+
+    setEditedRoom({
+        ...editedRoom,
+        futureReservations: updatedList,
+        history: [{
+            date: new Date().toISOString(),
+            action: 'INFO',
+            description: `${editingFutureResId ? 'Updated' : 'Added'} reservation for ${resData.guestName}`
+        }, ...(editedRoom.history || [])]
+    });
+
+    setIsAddingFutureRes(false);
+    setEditingFutureResId(null);
+    resetFutureResForm();
+  };
+
   const handleTransition = (targetStatus: RoomStatus, logAction: RoomHistoryEntry['action'], logDesc: string) => {
       if (!editedRoom) return;
       const newHistory = [...(editedRoom.history || [])];
@@ -298,6 +305,47 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
       const roomToSave = { ...editedRoom, ...updates };
       onUpdate(roomToSave);
       onClose();
+  };
+
+  const handleCheckInReservation = (res: Reservation) => {
+    if (!editedRoom) return;
+    
+    if (editedRoom.status === RoomStatus.OCCUPIED) {
+        if (!confirm("Room is already occupied. Process check-in for this new guest anyway?")) return;
+    }
+
+    const now = new Date().toISOString();
+    const newHistory = [...(editedRoom.history || [])];
+    newHistory.unshift({ 
+        date: now, 
+        action: 'CHECK_IN', 
+        description: `Check-in from reservation: ${res.guestName}` 
+    });
+
+    const updatedRoom: Room = {
+        ...editedRoom,
+        status: RoomStatus.OCCUPIED,
+        guestName: res.guestName,
+        checkInDate: res.checkInDate,
+        checkOutDate: res.checkOutDate,
+        checkInTime: res.checkInTime || '14:00',
+        checkOutTime: res.checkOutTime || '12:00',
+        bookingSource: res.source || BookingSource.WALK_IN,
+        futureReservations: editedRoom.futureReservations?.filter(r => r.id !== res.id),
+        history: newHistory,
+        isIdScanned: false,
+        invoiceStatus: InvoiceStatus.NONE,
+        maintenanceIssue: undefined
+    };
+    
+    onUpdate(updatedRoom);
+    onClose();
+  };
+
+  const handleEditFutureRes = (res: Reservation) => {
+    setFutureRes(res);
+    setEditingFutureResId(res.id);
+    setIsAddingFutureRes(true);
   };
 
   const handleGuestSelect = (guest: Guest) => {
@@ -353,7 +401,10 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
         return (
             <div className="grid grid-cols-2 gap-3 mb-6">
                 <button onClick={() => handleTransition(RoomStatus.AVAILABLE, 'STATUS_CHANGE', 'Room cleaned')} className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl font-bold text-emerald-800 flex flex-col items-center"><Sparkles className="w-5 h-5 mb-1" />{t.workflow.markClean}</button>
-                <button onClick={() => setEditedRoom({...editedRoom, status: RoomStatus.MAINTENANCE})} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 flex flex-col items-center"><WrenchIcon /></button>
+                <button onClick={() => setEditedRoom({...editedRoom, status: RoomStatus.MAINTENANCE})} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 flex flex-col items-center">
+                  <WrenchIcon className="mb-1" />
+                  <span className="text-xs">{t.detail.maintenance}</span>
+                </button>
             </div>
         );
       }
@@ -396,19 +447,40 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
             </h3>
             {editedRoom.futureReservations?.map((res) => (
                 <div key={res.id} className="bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/50 p-3 rounded-xl flex justify-between items-center group animate-in fade-in">
-                    <div>
+                    <div className="flex-1">
                         <div className="font-bold text-sm text-purple-900 dark:text-purple-200">{res.guestName}</div>
                         <div className="text-[10px] text-purple-700 dark:text-purple-400 font-mono">
                             {res.checkInDate} {res.checkInTime} → {res.checkOutDate} {res.checkOutTime}
                         </div>
                     </div>
-                    <button onClick={() => removeFutureRes(res.id)} className="p-1.5 rounded opacity-0 group-hover:opacity-100 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-500 transition-all">
-                        <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                        <button 
+                            onClick={() => handleCheckInReservation(res)} 
+                            title="Check In Now"
+                            className="p-1.5 rounded opacity-0 group-hover:opacity-100 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-600 transition-all flex items-center gap-1"
+                        >
+                            <LogIn className="w-4 h-4" />
+                            <span className="text-[10px] font-bold">Check In</span>
+                        </button>
+                        <button 
+                            onClick={() => handleEditFutureRes(res)} 
+                            title="Edit"
+                            className="p-1.5 rounded opacity-0 group-hover:opacity-100 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-600 transition-all"
+                        >
+                            <Pencil className="w-4 h-4" />
+                        </button>
+                        <button 
+                            onClick={() => removeFutureRes(res.id)} 
+                            title="Delete"
+                            className="p-1.5 rounded opacity-0 group-hover:opacity-100 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-500 transition-all"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
             ))}
             {!isAddingFutureRes && (
-                <button onClick={() => setIsAddingFutureRes(true)} className="w-full py-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 dark:hover:border-indigo-900 flex items-center justify-center gap-2 transition-all">
+                <button onClick={() => { setIsAddingFutureRes(true); resetFutureResForm(); }} className="w-full py-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 dark:hover:border-indigo-900 flex items-center justify-center gap-2 transition-all">
                     <PlusCircle className="w-4 h-4" /> <span className="text-xs font-bold uppercase tracking-wider">{t.detail.addFutureRes}</span>
                 </button>
             )}
@@ -533,8 +605,11 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
           {isAddingFutureRes && (
             <div className="p-4 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/10 animate-in slide-in-from-right-4 space-y-4">
                 <div className="flex justify-between items-center">
-                    <h4 className="font-bold text-purple-800 dark:text-purple-400 flex items-center gap-2"><CalendarDays className="w-4 h-4" /> {t.detail.futureGuest}</h4>
-                    <button onClick={() => setIsAddingFutureRes(false)} className="text-xs text-rose-500 font-bold underline">{t.detail.cancelFuture}</button>
+                    <h4 className="font-bold text-purple-800 dark:text-purple-400 flex items-center gap-2">
+                        <CalendarDays className="w-4 h-4" /> 
+                        {editingFutureResId ? 'Edit Reservation' : t.detail.futureGuest}
+                    </h4>
+                    <button onClick={() => { setIsAddingFutureRes(false); setEditingFutureResId(null); }} className="text-xs text-rose-500 font-bold underline">{t.detail.cancelFuture}</button>
                 </div>
                 {!futureRes.guestName ? <GuestFinder onSelectGuest={handleGuestSelect} lang={lang} /> : (
                     <div className="bg-white dark:bg-slate-800 border border-purple-200 dark:border-purple-800 p-3 rounded-lg flex justify-between items-center shadow-sm">
@@ -556,11 +631,31 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                         </select>
                     </div>
                 </div>
+                <div>
+                    <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.bookingSource}</label>
+                    <select
+                          value={futureRes.source || BookingSource.WALK_IN}
+                          onChange={(e) => setFutureRes({...futureRes, source: e.target.value as BookingSource})}
+                          className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+                      >
+                          {Object.values(BookingSource).map(src => (
+                              <option key={src} value={src}>{t.sources[src]}</option>
+                          ))}
+                    </select>
+                </div>
+                <button 
+                    onClick={applyFutureReservation}
+                    disabled={!futureRes.guestName}
+                    className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                >
+                    {editingFutureResId ? <Save className="w-4 h-4" /> : <PlusCircle className="w-4 h-4" />}
+                    {editingFutureResId ? 'Update Reservation' : 'Add to List'}
+                </button>
             </div>
           )}
 
           {isMaintenance && (
-             <div className="bg-rose-50 dark:bg-rose-900/20 p-4 rounded-xl border border-rose-200 dark:border-rose-800/50 shadow-sm animate-in fade-in">
+            <div className="bg-rose-50 dark:bg-rose-900/20 p-4 rounded-xl border border-rose-200 dark:border-rose-800/50 shadow-sm animate-in fade-in">
                <h3 className="text-lg font-bold text-rose-800 dark:text-rose-400 mb-4 flex items-center gap-2"><WrenchIcon className="w-5 h-5" /> {t.detail.maintenance}</h3>
                <div>
                   <label className="block text-xs uppercase text-rose-700 dark:text-rose-400 font-bold mb-1">{t.detail.issueDesc}</label>
@@ -600,7 +695,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
              )}
           </div>
 
-          {/* Room Configuration Section (Admin Locked & Relocated to Bottom) */}
           <div className="border border-amber-200 dark:border-amber-900 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-slate-800">
                  <button onClick={() => setShowConfig(!showConfig)} className="w-full p-4 flex items-center justify-between bg-amber-50 dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-slate-700 transition-colors">
                     <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-400">
@@ -635,7 +729,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                         ) : (
                             <div className="space-y-4 animate-in fade-in">
                                 <div>
-                                    <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.roomNumber}</label>
+                                    <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.roomName}</label>
                                     <input 
                                         type="text" 
                                         value={editedRoom.number} 
@@ -644,7 +738,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.roomName}</label>
+                                    <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.roomNumber}</label>
                                     <input 
                                         type="text" 
                                         value={editedRoom.name || ''} 
@@ -672,7 +766,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
             </div>
 
           <div className="flex gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
-             <button onClick={handleSave} disabled={isAddingFutureRes && !futureRes.guestName} className={`flex-1 py-3 rounded-lg font-bold transition-all shadow-md flex items-center justify-center gap-2 ${isConflict ? 'bg-rose-600 text-white animate-pulse' : 'bg-indigo-600 text-white hover:bg-indigo-700'} ${isAddingFutureRes ? 'bg-purple-600 hover:bg-purple-700' : ''}`}>
+             <button onClick={handleSave} className={`flex-1 py-3 rounded-lg font-bold transition-all shadow-md flex items-center justify-center gap-2 ${isConflict ? 'bg-rose-600 text-white animate-pulse' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
                <Save className="w-4 h-4" /> {t.detail.save}
              </button>
           </div>
