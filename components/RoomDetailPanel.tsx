@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Room, RoomStatus, BookingSource, Guest, RoomHistoryEntry, Booking, BookingType, Reservation } from '../types';
-import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon, Lock, Unlock } from 'lucide-react';
+import { Room, RoomStatus, BookingSource, Guest, RoomHistoryEntry, Booking, BookingType, Reservation, InvoiceStatus } from '../types';
+import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon, Lock, Unlock, FileText } from 'lucide-react';
 import { generateWelcomeMessage, getMaintenanceAdvice } from '../services/geminiService';
 import { hasBookingConflict, isTimeSlotAvailable } from '../services/validationService';
 import { translations, Language } from '../translations';
@@ -129,6 +129,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
       }
       
       if (nextRoom.isIdScanned === undefined) nextRoom.isIdScanned = false;
+      if (nextRoom.invoiceStatus === undefined) nextRoom.invoiceStatus = InvoiceStatus.NONE;
       if (nextRoom.salePrice === undefined) nextRoom.salePrice = nextRoom.price;
       if (!nextRoom.history) nextRoom.history = [];
       if (!nextRoom.futureReservations) nextRoom.futureReservations = [];
@@ -286,6 +287,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
               guestName: undefined,
               guestId: undefined,
               isIdScanned: false,
+              invoiceStatus: InvoiceStatus.NONE,
               checkInDate: undefined,
               checkOutDate: undefined,
               bookingSource: undefined,
@@ -466,18 +468,32 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                    </div>
                 </div>
 
-                <div>
-                   <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.bookingSource}</label>
-                   <select
-                        value={editedRoom.bookingSource || ''}
-                        onChange={(e) => setEditedRoom({...editedRoom, bookingSource: e.target.value as BookingSource})}
-                        className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
-                    >
-                        <option value="">-- Select Source --</option>
-                        {Object.values(BookingSource).map(src => (
-                            <option key={src} value={src}>{t.sources[src]}</option>
-                        ))}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.bookingSource}</label>
+                    <select
+                          value={editedRoom.bookingSource || ''}
+                          onChange={(e) => setEditedRoom({...editedRoom, bookingSource: e.target.value as BookingSource})}
+                          className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+                      >
+                          <option value="">-- Select Source --</option>
+                          {Object.values(BookingSource).map(src => (
+                              <option key={src} value={src}>{t.sources[src]}</option>
+                          ))}
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.invoiceStatus}</label>
+                    <select
+                          value={editedRoom.invoiceStatus || InvoiceStatus.NONE}
+                          onChange={(e) => setEditedRoom({...editedRoom, invoiceStatus: e.target.value as InvoiceStatus})}
+                          className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+                      >
+                          {Object.values(InvoiceStatus).map(status => (
+                              <option key={status} value={status}>{t.invoice[status]}</option>
+                          ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div 

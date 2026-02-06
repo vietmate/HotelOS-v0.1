@@ -1,5 +1,5 @@
 
-import { RoomStatus, RoomType, BookingSource } from './types';
+import { RoomStatus, RoomType, BookingSource, InvoiceStatus } from './types';
 
 export type Language = 'en' | 'vi';
 
@@ -48,6 +48,11 @@ export const translations = {
       [BookingSource.WALK_IN]: "Walk-In",
       [BookingSource.OTHER]: "Other"
     },
+    invoice: {
+      [InvoiceStatus.NONE]: "No invoice requested",
+      [InvoiceStatus.REQUIRED]: "Required (at checkout)",
+      [InvoiceStatus.PROVIDED]: "Invoice provided"
+    },
     detail: {
       currentStatus: "Current Status",
       guestInfo: "Guest Information",
@@ -55,6 +60,7 @@ export const translations = {
       guestName: "Guest Name",
       enterGuestName: "Enter guest name...",
       bookingSource: "Booking Source",
+      invoiceStatus: "Invoice Status",
       checkIn: "Check In",
       checkOut: "Check Out",
       selectTime: "Select Time",
@@ -100,7 +106,9 @@ export const translations = {
         checkoutSoon: "Checkout Soon",
         overdue: "Overdue",
         kbtttOk: "KBTTT OK",
-        kbtttMissing: "No KBTTT"
+        kbtttMissing: "No KBTTT",
+        invoicePending: "Invoice Req",
+        invoiceOk: "Invoice OK"
     },
     alerts: {
       title: "Attention Required",
@@ -253,6 +261,11 @@ export const translations = {
       [BookingSource.WALK_IN]: "Khách vãng lai",
       [BookingSource.OTHER]: "Khác"
     },
+    invoice: {
+      [InvoiceStatus.NONE]: "Không yêu cầu",
+      [InvoiceStatus.REQUIRED]: "Cần hóa đơn (khi trả phòng)",
+      [InvoiceStatus.PROVIDED]: "Đã cung cấp hóa đơn"
+    },
     detail: {
       currentStatus: "Trạng thái hiện tại",
       guestInfo: "Thông tin khách",
@@ -260,6 +273,7 @@ export const translations = {
       guestName: "Tên khách",
       enterGuestName: "Nhập tên khách...",
       bookingSource: "Nguồn đặt phòng",
+      invoiceStatus: "Hóa đơn",
       checkIn: "Nhận phòng",
       checkOut: "Trả phòng",
       selectTime: "Chọn giờ",
@@ -305,7 +319,9 @@ export const translations = {
         checkoutSoon: "Sắp trả phòng",
         overdue: "Quá giờ",
         kbtttOk: "Đã KBTTT",
-        kbtttMissing: "Thiếu KBTTT"
+        kbtttMissing: "Thiếu KBTTT",
+        invoicePending: "Cần HĐ",
+        invoiceOk: "Đã HĐ"
     },
     alerts: {
       title: "Cần chú ý",

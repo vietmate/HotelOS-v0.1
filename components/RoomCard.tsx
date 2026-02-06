@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Room, RoomStatus, RoomType } from '../types';
-import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, AlertTriangle, Calendar, CheckSquare, Square, FileCheck, DollarSign } from 'lucide-react';
+import { Room, RoomStatus, RoomType, InvoiceStatus } from '../types';
+import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, AlertTriangle, Calendar, CheckSquare, Square, FileCheck, DollarSign, FileText } from 'lucide-react';
 import { translations, Language } from '../translations';
 
 interface RoomCardProps {
@@ -134,6 +134,17 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
                     <span className="text-[9px] bg-white/50 dark:bg-black/20 border border-current/10 px-1.5 py-0.5 rounded-md inline-block font-bold opacity-80">
                         {t.sources[room.bookingSource]}
                     </span>
+                )}
+                {room.invoiceStatus && room.invoiceStatus !== InvoiceStatus.NONE && (
+                    <div 
+                        className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md font-bold border
+                        ${room.invoiceStatus === InvoiceStatus.PROVIDED 
+                            ? 'bg-emerald-100/50 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-200/50 dark:border-emerald-800/50' 
+                            : 'bg-amber-100/80 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800'}`}
+                    >
+                        <FileText className="w-2.5 h-2.5" />
+                        <span>{room.invoiceStatus === InvoiceStatus.PROVIDED ? t.card.invoiceOk : t.card.invoicePending}</span>
+                    </div>
                 )}
                 <div 
                     className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md font-bold border

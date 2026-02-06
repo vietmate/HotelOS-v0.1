@@ -1,8 +1,8 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Room, RoomStatus } from '../types';
 import { translations, Language } from '../translations';
-import { Users, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { Users, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock } from 'lucide-react';
 
 interface CalendarViewProps {
   rooms: Room[];
@@ -12,7 +12,20 @@ interface CalendarViewProps {
 
 export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, lang }) => {
   const t = translations[lang];
-  const [startDate, setStartDate] = useState(new Date());
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const [now, setNow] = useState(new Date());
+
+  // Update current time every minute to keep the red line moving
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Generate 14 days based on startDate
   const dates = useMemo(() => Array.from({ length: 14 }, (_, i) => {
@@ -23,7 +36,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
   }), [startDate]);
 
   const windowStartTime = dates[0].getTime();
-  const windowEndTime = dates[13].getTime() + 86400000; // End of the 14th day
+  const windowEndTime = dates[13].getTime() + 86400000; // End of the 14th day (midnight of the 15th)
 
   const getDateString = (date: Date) => {
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -73,23 +86,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
     }
   };
 
-  const timeToMinutes = (timeStr?: string) => {
-    if (!timeStr) return 0;
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    return hours * 60 + minutes;
-  };
-
-  /**
-   * Calculates the left and width percentage for a booking bar relative to the 14-day grid.
-   */
   const calculateBarPosition = (startStr: string, endStr: string, startTimeStr?: string, endTimeStr?: string) => {
     const start = new Date(`${startStr}T${startTimeStr || '14:00'}:00`).getTime();
     const end = new Date(`${endStr}T${endTimeStr || '12:00'}:00`).getTime();
 
-    // Check if it overlaps with the 14-day window
     if (end <= windowStartTime || start >= windowEndTime) return null;
 
-    // Clamp to window
     const effectiveStart = Math.max(start, windowStartTime);
     const effectiveEnd = Math.min(end, windowEndTime);
 
@@ -100,10 +102,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
     return { left, width, isClippedLeft: start < windowStartTime, isClippedRight: end > windowEndTime };
   };
 
+  // Calculate the position of the "Now" red line as percentage of grid width (excluding label column)
+  const nowPosition = useMemo(() => {
+    const nowTime = now.getTime();
+    if (nowTime < windowStartTime || nowTime > windowEndTime) return null;
+    return ((nowTime - windowStartTime) / (windowEndTime - windowStartTime)) * 100;
+  }, [now, windowStartTime, windowEndTime]);
+
   const renderBarsForRow = (room: Room) => {
     const items: React.ReactNode[] = [];
 
-    // 1. Current Active Stay/Reservation
     if ((room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && room.checkInDate && room.checkOutDate) {
       const pos = calculateBarPosition(room.checkInDate, room.checkOutDate, room.checkInTime, room.checkOutTime);
       if (pos) {
@@ -121,7 +129,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
       }
     }
 
-    // 2. Future Reservations
     if (room.futureReservations && room.futureReservations.length > 0) {
       room.futureReservations.forEach((res, idx) => {
         const pos = calculateBarPosition(res.checkInDate, res.checkOutDate, res.checkInTime, res.checkOutTime);
@@ -139,37 +146,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
           );
         }
       });
-    }
-
-    // 3. Maintenance/Dirty status indicators (Today only)
-    const todayStr = getDateString(new Date());
-    const todayPos = calculateBarPosition(todayStr, todayStr, '00:00', '23:59');
-    
-    if (todayPos && (room.status === RoomStatus.MAINTENANCE || room.status === RoomStatus.DIRTY || (room.status === RoomStatus.AVAILABLE))) {
-      // Only show static background indicators if no booking overlaps the current moment significantly
-      // But user specifically asked for "bars" to be continuous. Maintenance/Dirty are usually room-level states.
-      // We'll render them as background highlights for today if they are the current status.
-      if (room.status === RoomStatus.MAINTENANCE) {
-        items.push(
-          <div 
-            key={`maint-${room.id}`}
-            className="absolute inset-y-1 rounded-md bg-rose-100 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 flex items-center justify-center opacity-50 pointer-events-none"
-            style={{ left: `${todayPos.left}%`, width: `${todayPos.width}%` }}
-          >
-             <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
-          </div>
-        );
-      } else if (room.status === RoomStatus.DIRTY) {
-        items.push(
-          <div 
-            key={`dirty-${room.id}`}
-            className="absolute inset-y-1 rounded-md bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 flex items-center justify-center opacity-50 pointer-events-none"
-            style={{ left: `${todayPos.left}%`, width: `${todayPos.width}%` }}
-          >
-             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-          </div>
-        );
-      }
     }
 
     return items;
@@ -190,7 +166,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
       </div>
       
       <div className="overflow-auto flex-1 custom-scrollbar">
-        <div className="min-w-[1200px] relative">
+        <div className="min-w-[1200px] relative flex flex-col">
+          
           {/* Header Row */}
           <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 sticky top-0 z-30">
             <div className="w-32 p-3 font-bold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-40 shadow-sm">Room</div>
@@ -205,39 +182,61 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
             })}
           </div>
 
-          {/* Room Rows */}
-          {rooms.map(room => (
-            <div key={room.id} className="flex border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group relative h-14">
-                {/* Room Identifier Label */}
-                <div onClick={() => onRoomClick(room)} className="w-32 p-3 border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-white dark:bg-slate-800 group-hover:bg-slate-50 dark:group-hover:bg-slate-700/30 z-20 cursor-pointer flex flex-col justify-center">
-                    <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">{room.number}</div>
-                    <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
-                        <span>{t.roomType[room.type]}</span>
-                        <span>•</span>
-                        <span className="flex items-center"><Users className="w-3 h-3" /> {room.capacity}</span>
+          {/* Grid Area with Relative Overlay */}
+          <div className="relative">
+              
+              {/* NOW INDICATOR OVERLAY */}
+              {/* This container has a margin-left to skip the room-label sidebar and spans exactly the 14 columns */}
+              <div className="absolute top-0 bottom-0 left-32 right-0 pointer-events-none z-50">
+                  {nowPosition !== null && (
+                    <div 
+                        className="absolute top-0 bottom-0 w-px bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]"
+                        style={{ left: `${nowPosition}%` }}
+                    >
+                        {/* Current Time Handle */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-rose-500 flex items-center justify-center ring-4 ring-rose-500/20">
+                            <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                            {/* Time Display */}
+                            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">
+                                {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                            </div>
+                        </div>
+                    </div>
+                  )}
+              </div>
+
+              {/* Room Rows */}
+              {rooms.map(room => (
+                <div key={room.id} className="flex border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group relative h-14">
+                    {/* Room Identifier Label (Fixed Width w-32 = 128px) */}
+                    <div onClick={() => onRoomClick(room)} className="w-32 p-3 border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-white dark:bg-slate-800 group-hover:bg-slate-50 dark:group-hover:bg-slate-700/30 z-20 cursor-pointer flex flex-col justify-center">
+                        <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">{room.number}</div>
+                        <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                            <span>{t.roomType[room.type]}</span>
+                        </div>
+                    </div>
+
+                    {/* Date Grid Cells */}
+                    <div className="flex-1 flex relative">
+                       {dates.map(date => {
+                         const isToday = isSameDay(date, getDateString(new Date()));
+                         return (
+                           <div 
+                             key={`${room.id}-${date.toISOString()}`} 
+                             onClick={() => onRoomClick(room)}
+                             className={`flex-1 min-w-[80px] border-r border-slate-100 dark:border-slate-700/30 cursor-pointer ${isToday ? 'bg-indigo-50/10 dark:bg-indigo-900/5' : ''}`}
+                           />
+                         );
+                       })}
+                       
+                       {/* Booking Bars Overlay */}
+                       <div className="absolute inset-0 pointer-events-none">
+                          {renderBarsForRow(room)}
+                       </div>
                     </div>
                 </div>
-
-                {/* Date Grid Cells (Background Layer) */}
-                <div className="flex-1 flex relative">
-                   {dates.map(date => {
-                     const isToday = isSameDay(date, getDateString(new Date()));
-                     return (
-                       <div 
-                         key={`${room.id}-${date.toISOString()}`} 
-                         onClick={() => onRoomClick(room)}
-                         className={`flex-1 min-w-[80px] border-r border-slate-100 dark:border-slate-700/30 cursor-pointer ${isToday ? 'bg-indigo-50/10 dark:bg-indigo-900/5' : ''}`}
-                       />
-                     );
-                   })}
-                   
-                   {/* Continuous Bars (Overlay Layer) */}
-                   <div className="absolute inset-0 pointer-events-none">
-                      {renderBarsForRow(room)}
-                   </div>
-                </div>
-            </div>
-          ))}
+              ))}
+          </div>
         </div>
       </div>
     </div>

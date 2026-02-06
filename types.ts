@@ -21,6 +21,12 @@ export enum BookingSource {
   OTHER = 'Other'
 }
 
+export enum InvoiceStatus {
+  NONE = 'NONE',
+  REQUIRED = 'REQUIRED',
+  PROVIDED = 'PROVIDED'
+}
+
 export interface Reservation {
   id: string;
   guestName: string;
@@ -67,6 +73,7 @@ export interface Room {
   notes?: string;
   maintenanceIssue?: string;
   bookingSource?: BookingSource;
+  invoiceStatus?: InvoiceStatus;
   futureReservations?: Reservation[]; // Changed from upcomingReservation to array
   isIdScanned?: boolean; // KBTTT Compliance
   icalUrl?: string; // Booking.com Calendar Link
