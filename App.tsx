@@ -5,7 +5,6 @@ import { RoomCard } from './components/RoomCard';
 import { RoomDetailPanel } from './components/RoomDetailPanel';
 import { OccupancyGauge } from './components/OccupancyGauge';
 import { StatsChart } from './components/StatsChart';
-import { ClockWidget } from './components/ClockWidget';
 import { PettyCashWidget } from './components/PettyCashWidget';
 import { QuickActionsWidget } from './components/QuickActionsWidget';
 import { CalendarView } from './components/CalendarView';
@@ -13,7 +12,7 @@ import { NotesView } from './components/NotesView';
 import { GuestFinder } from './components/GuestFinder';
 import { EmployeesView } from './components/EmployeesView';
 import { MobileDashboard } from './components/MobileDashboard';
-import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning, Moon, Sun, X, Users, Smartphone, LayoutTemplate, RotateCcw, Lock } from 'lucide-react';
+import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning, Moon, Sun, X, Users, Smartphone, LayoutTemplate, RotateCcw, Lock, Clock } from 'lucide-react';
 import { translations, Language } from './translations';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 
@@ -94,9 +93,9 @@ const generateInitialRooms = (): Room[] => {
 };
 
 type ViewMode = 'grid' | 'calendar' | 'notes' | 'employees';
-type WidgetId = 'quickActions' | 'clock' | 'pettyCash' | 'alerts' | 'occupancy' | 'stats';
+type WidgetId = 'quickActions' | 'pettyCash' | 'alerts' | 'occupancy' | 'stats';
 
-const DEFAULT_WIDGET_ORDER: WidgetId[] = ['quickActions', 'clock', 'pettyCash', 'alerts', 'occupancy', 'stats'];
+const DEFAULT_WIDGET_ORDER: WidgetId[] = ['quickActions', 'pettyCash', 'alerts', 'occupancy', 'stats'];
 
 export default function App() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -118,6 +117,7 @@ export default function App() {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [resetPassword, setResetPassword] = useState('');
   const [isResetting, setIsResetting] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
@@ -146,6 +146,11 @@ export default function App() {
   };
 
   useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     const fetchData = async () => {
         setIsLoading(true);
         
@@ -158,7 +163,10 @@ export default function App() {
         setEmployees(savedEmp ? JSON.parse(savedEmp) : []);
         setTimeEntries(savedTime ? JSON.parse(savedTime) : []);
         setHotelName(localStorage.getItem(STORAGE_KEY_HOTEL_NAME) || 'HotelOS');
-        if (savedOrder) setWidgetOrder(JSON.parse(savedOrder));
+        if (savedOrder) {
+          const parsedOrder = JSON.parse(savedOrder);
+          setWidgetOrder(parsedOrder.filter((id: string) => id !== 'clock'));
+        }
 
         if (!isSupabaseConfigured()) {
             setIsConnected(false);
@@ -193,7 +201,7 @@ export default function App() {
                 const nameSetting = settingsData.find(s => s.key === 'hotel_name');
                 if (nameSetting) setHotelName(nameSetting.value);
                 const orderSetting = settingsData.find(s => s.key === 'widget_order');
-                if (orderSetting) setWidgetOrder(orderSetting.value);
+                if (orderSetting) setWidgetOrder(orderSetting.value.filter((id: string) => id !== 'clock'));
             }
 
             setIsConnected(true);
@@ -371,7 +379,6 @@ export default function App() {
   const renderWidgetContent = (id: WidgetId) => {
       switch(id) {
           case 'quickActions': return <QuickActionsWidget lang={lang} onAction={handleQuickAction} />;
-          case 'clock': return <ClockWidget lang={lang} />;
           case 'pettyCash': return <PettyCashWidget lang={lang} />;
           case 'alerts': return renderAlertsWidget();
           case 'occupancy': return <div className="mb-8 flex flex-col items-center"><OccupancyGauge percentage={occupancyPercentage} label={t.occupancy} /></div>;
@@ -405,8 +412,20 @@ export default function App() {
     }
   };
 
+  const compactTimeStr = currentTime.toLocaleTimeString(lang === 'vi' ? 'vi-VN' : 'en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  const compactDateStr = currentTime.toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
+  });
+
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-200">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-200 overflow-hidden">
       {!isMobileMode && (
         <div className="w-80 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col hidden md:flex z-10 transition-colors duration-200">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800">
@@ -479,11 +498,23 @@ export default function App() {
                       <div><h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t.roomOverview}</h2><p className="text-slate-500 dark:text-slate-400 text-sm">{t.manageBookings}</p></div>
                       
                       {!isMobileMode && (
-                        <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-lg flex items-center gap-1">
-                            <button onClick={() => setViewMode('grid')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><LayoutGrid className="w-4 h-4" /> {t.views.grid}</button>
-                            <button onClick={() => setViewMode('calendar')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><CalendarDays className="w-4 h-4" /> {t.views.calendar}</button>
-                            <button onClick={() => setViewMode('notes')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'notes' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><NotebookPen className="w-4 h-4" /> {t.views.notes}</button>
-                            <button onClick={() => setViewMode('employees')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'employees' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><Users className="w-4 h-4" /> {t.views.employees}</button>
+                        <div className="flex items-center gap-4">
+                            <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-lg flex items-center gap-1">
+                                <button onClick={() => setViewMode('grid')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><LayoutGrid className="w-4 h-4" /> {t.views.grid}</button>
+                                <button onClick={() => setViewMode('calendar')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><CalendarDays className="w-4 h-4" /> {t.views.calendar}</button>
+                                <button onClick={() => setViewMode('notes')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'notes' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><NotebookPen className="w-4 h-4" /> {t.views.notes}</button>
+                                <button onClick={() => setViewMode('employees')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'employees' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><Users className="w-4 h-4" /> {t.views.employees}</button>
+                            </div>
+                            
+                            {/* COMPACT CLOCK DISPLAY */}
+                            <div className="hidden sm:flex items-center gap-3 px-3 py-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200/50 dark:border-slate-800/50 text-slate-500 dark:text-slate-400">
+                                <div className="flex items-center gap-1.5">
+                                    <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                                    <span className="text-sm font-black font-mono tracking-tight text-slate-700 dark:text-slate-200">{compactTimeStr}</span>
+                                </div>
+                                <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">{compactDateStr}</span>
+                            </div>
                         </div>
                       )}
                    </div>
