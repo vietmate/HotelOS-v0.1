@@ -157,7 +157,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
         <div className="flex items-center gap-2">
             <button onClick={handlePrev} className="p-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors"><ChevronLeft className="w-5 h-5" /></button>
             <button onClick={handleToday} className="px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm font-bold text-slate-600 dark:text-slate-300">{t.calendar.today}</button>
-            <button onClick={handleNext} className="p-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors"><ChevronRight className="w-5 h-5" /></button>
+            {/* Fix: Merged duplicate className attributes on ChevronLeft */}
+            <button onClick={handleNext} className="p-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors"><ChevronLeft className="w-5 h-5 transform rotate-180" /></button>
         </div>
         <div className="flex items-center gap-2">
             <CalendarIcon className="w-4 h-4 text-slate-400" />
@@ -186,17 +187,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
           <div className="relative">
               
               {/* NOW INDICATOR OVERLAY */}
-              {/* This container has a margin-left to skip the room-label sidebar and spans exactly the 14 columns */}
               <div className="absolute top-0 bottom-0 left-32 right-0 pointer-events-none z-50">
                   {nowPosition !== null && (
                     <div 
                         className="absolute top-0 bottom-0 w-px bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]"
                         style={{ left: `${nowPosition}%` }}
                     >
-                        {/* Current Time Handle */}
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-rose-500 flex items-center justify-center ring-4 ring-rose-500/20">
                             <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-                            {/* Time Display */}
                             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">
                                 {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                             </div>
@@ -210,7 +208,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
                 <div key={room.id} className="flex border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group relative h-14">
                     {/* Room Identifier Label (Fixed Width w-32 = 128px) */}
                     <div onClick={() => onRoomClick(room)} className="w-32 p-3 border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-white dark:bg-slate-800 group-hover:bg-slate-50 dark:group-hover:bg-slate-700/30 z-20 cursor-pointer flex flex-col justify-center">
-                        <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">{room.number}</div>
+                        <div className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate" title={room.name || room.number}>
+                            {room.name || room.number}
+                        </div>
                         <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
                             <span>{t.roomType[room.type]}</span>
                         </div>
