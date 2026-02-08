@@ -34,6 +34,7 @@ export interface Reservation {
   checkOutDate: string;
   checkInTime?: string;
   checkOutTime?: string;
+  isHourly?: boolean;
   source?: BookingSource;
 }
 

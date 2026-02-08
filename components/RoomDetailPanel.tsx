@@ -167,6 +167,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
       checkOutDate: formatDate(dayAfter),
       checkInTime: '14:00',
       checkOutTime: '12:00',
+      isHourly: false,
       source: BookingSource.WALK_IN
     });
   };
@@ -263,6 +264,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
         checkOutDate: futureRes.checkOutDate,
         checkInTime: futureRes.checkInTime || '14:00',
         checkOutTime: futureRes.checkOutTime || '12:00',
+        isHourly: !!futureRes.isHourly,
         source: futureRes.source || BookingSource.WALK_IN
     };
 
@@ -278,7 +280,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
         history: [{
             date: new Date().toISOString(),
             action: 'INFO',
-            description: `${editingFutureResId ? 'Updated' : 'Added'} reservation for ${resData.guestName}`
+            description: `${editingFutureResId ? 'Updated' : 'Added'} ${resData.isHourly ? 'hourly' : 'daily'} reservation for ${resData.guestName}`
         }, ...(editedRoom.history || [])]
     });
 
@@ -303,7 +305,8 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
               checkOutDate: undefined,
               bookingSource: undefined,
               maintenanceIssue: undefined,
-              salePrice: undefined
+              salePrice: undefined,
+              isHourly: false
           };
       }
       const roomToSave = { ...editedRoom, ...updates };
@@ -323,7 +326,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
     newHistory.unshift({ 
         date: now, 
         action: 'CHECK_IN', 
-        description: `Check-in from reservation: ${res.guestName}` 
+        description: `Check-in from reservation: ${res.guestName} (${res.isHourly ? 'Hourly' : 'Standard'})` 
     });
 
     const updatedRoom: Room = {
@@ -334,6 +337,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
         checkOutDate: res.checkOutDate,
         checkInTime: res.checkInTime || '14:00',
         checkOutTime: res.checkOutTime || '12:00',
+        isHourly: !!res.isHourly,
         bookingSource: res.source || BookingSource.WALK_IN,
         futureReservations: editedRoom.futureReservations?.filter(r => r.id !== res.id),
         history: newHistory,
@@ -413,7 +417,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
         );
       }
       if (status === RoomStatus.OCCUPIED) return <div className="mb-6"><button onClick={() => handleTransition(RoomStatus.DIRTY, 'CHECK_OUT', `Check-out: ${editedRoom.guestName}`)} className="w-full p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl font-bold flex items-center justify-center gap-2"><ArrowRight className="w-5 h-5" />{t.workflow.checkOut}</button></div>;
-      if (status === RoomStatus.RESERVED) return <div className="grid grid-cols-2 gap-3 mb-6"><button onClick={() => setEditedRoom({...editedRoom, status: RoomStatus.OCCUPIED})} className="p-3 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2"><UserCheck className="w-4 h-4" />{t.workflow.checkIn}</button><button onClick={() => handleTransition(RoomStatus.AVAILABLE, 'STATUS_CHANGE', 'Reservation Cancelled')} className="p-3 bg-slate-100 text-slate-600 border rounded-xl font-bold flex items-center justify-center gap-2"><X className="w-4 h-4" />{t.workflow.cancelRes}</button></div>;
+      if (status === RoomStatus.RESERVED) return <div className="grid grid-cols-2 gap-3 mb-6"><button onClick={() => setEditedRoom({...editedRoom, status: RoomStatus.OCCUPIED})} className="p-3 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2"><UserCheck className="w-4 h-4" /> {t.workflow.checkIn}</button><button onClick={() => handleTransition(RoomStatus.AVAILABLE, 'STATUS_CHANGE', 'Reservation Cancelled')} className="p-3 bg-slate-100 text-slate-600 border rounded-xl font-bold flex items-center justify-center gap-2"><X className="w-4 h-4" />{t.workflow.cancelRes}</button></div>;
       return null;
   };
 
@@ -452,7 +456,14 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
             {editedRoom.futureReservations?.map((res) => (
                 <div key={res.id} className="bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/50 p-3 rounded-xl flex justify-between items-center group animate-in fade-in">
                     <div className="flex-1">
-                        <div className="font-bold text-sm text-purple-900 dark:text-purple-200">{res.guestName}</div>
+                        <div className="flex items-center gap-2">
+                            <div className="font-bold text-sm text-purple-900 dark:text-purple-200">{res.guestName}</div>
+                            {res.isHourly && (
+                                <span className="text-[9px] bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800 px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-1">
+                                    <Clock className="w-2 h-2" /> {t.card.hourly}
+                                </span>
+                            )}
+                        </div>
                         <div className="text-[10px] text-purple-700 dark:text-purple-400 font-mono">
                             {res.checkInDate} {res.checkInTime} → {res.checkOutDate} {res.checkOutTime}
                         </div>
@@ -621,6 +632,12 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                         <button onClick={() => setFutureRes({...futureRes, guestName: undefined})} className="text-xs text-rose-500 hover:underline">Change</button>
                     </div>
                 )}
+                
+                <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => setFutureRes({...futureRes, isHourly: !futureRes.isHourly})} className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${futureRes.isHourly ? 'bg-purple-600' : 'bg-slate-200 dark:bg-slate-700'}`}><span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${futureRes.isHourly ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer" onClick={() => setFutureRes({...futureRes, isHourly: !futureRes.isHourly})}><Clock className="w-4 h-4" /> {t.detail.hourly}</span>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <DateInput label={t.detail.checkIn} value={futureRes.checkInDate} onChange={(val) => setFutureRes({...futureRes, checkInDate: val})} lang={lang} />
