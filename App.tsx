@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Room, RoomStatus, RoomType, BookingSource, Guest, RoomHistoryEntry, Employee, TimeEntry, EmployeeRole } from './types';
+import { Room, RoomStatus, RoomType, BookingSource, Guest, RoomHistoryEntry, Employee, TimeEntry, EmployeeRole, Reservation } from './types';
 import { RoomCard } from './components/RoomCard';
 import { RoomDetailPanel } from './components/RoomDetailPanel';
 import { OccupancyGauge } from './components/OccupancyGauge';
@@ -224,6 +224,57 @@ export default function App() {
     if (isSupabaseConfigured()) {
         await supabase.from('rooms').update({ data: updatedRoom, updated_at: new Date().toISOString() }).eq('id', updatedRoom.id);
     }
+  };
+
+  const handleMoveReservation = async (sourceRoomId: string, targetRoomId: string, reservation: Reservation) => {
+      const sourceRoom = rooms.find(r => r.id === sourceRoomId);
+      const targetRoom = rooms.find(r => r.id === targetRoomId);
+      
+      if (!sourceRoom || !targetRoom) return;
+
+      // 1. Update source: remove reservation and log move
+      const updatedSource: Room = {
+          ...sourceRoom,
+          futureReservations: sourceRoom.futureReservations?.filter(res => res.id !== reservation.id),
+          history: [{
+              date: new Date().toISOString(),
+              action: 'INFO',
+              description: `Reservation for ${reservation.guestName} shifted to Room ${targetRoom.number}`
+          }, ...(sourceRoom.history || [])]
+      };
+
+      // 2. Update target: add reservation and log move
+      const updatedTarget: Room = {
+          ...targetRoom,
+          futureReservations: [...(targetRoom.futureReservations || []), reservation],
+          history: [{
+              date: new Date().toISOString(),
+              action: 'INFO',
+              description: `Reservation for ${reservation.guestName} shifted from Room ${sourceRoom.number}`
+          }, ...(targetRoom.history || [])]
+      };
+
+      // 3. Global update
+      const nextRooms = rooms.map(r => {
+          if (r.id === sourceRoomId) return updatedSource;
+          if (r.id === targetRoomId) return updatedTarget;
+          return r;
+      });
+
+      setRooms(nextRooms);
+      localStorage.setItem(STORAGE_KEY_ROOMS, JSON.stringify(nextRooms));
+
+      if (isSupabaseConfigured()) {
+          await Promise.all([
+              supabase.from('rooms').update({ data: updatedSource, updated_at: new Date().toISOString() }).eq('id', sourceRoomId),
+              supabase.from('rooms').update({ data: updatedTarget, updated_at: new Date().toISOString() }).eq('id', targetRoomId)
+          ]);
+      }
+      
+      // Clear selection if we were looking at the room we just moved a reservation from
+      if (selectedRoom?.id === sourceRoomId) {
+          setSelectedRoom(updatedSource);
+      }
   };
 
   const handleEmployeesUpdate = async (updated: Employee[]) => {
@@ -542,7 +593,7 @@ export default function App() {
         </div>
       </div>
       {selectedRoom && <div className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-40 transition-opacity" onClick={() => setSelectedRoom(null)} />}
-      <RoomDetailPanel room={selectedRoom} onClose={() => setSelectedRoom(null)} onUpdate={handleRoomUpdate} lang={lang} />
+      <RoomDetailPanel room={selectedRoom} rooms={rooms} onClose={() => setSelectedRoom(null)} onUpdate={handleRoomUpdate} onMoveReservation={handleMoveReservation} lang={lang} />
       {isGuestModalOpen && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
@@ -553,7 +604,7 @@ export default function App() {
       )}
       {isResetModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700">
+             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700">
                   <div className="p-6">
                       <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle className="w-6 h-6" /></div>
                       <h3 className="font-bold text-xl text-center text-slate-900 dark:text-white mb-2">{t.admin.resetTitle}</h3>

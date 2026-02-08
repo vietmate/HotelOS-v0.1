@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Room, RoomStatus, BookingSource, Guest, RoomHistoryEntry, Booking, BookingType, Reservation, InvoiceStatus } from '../types';
-import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon, Lock, Unlock, FileText, LogIn, Pencil } from 'lucide-react';
+import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon, Lock, Unlock, FileText, LogIn, Pencil, Building2 } from 'lucide-react';
 import { generateWelcomeMessage, getMaintenanceAdvice } from '../services/geminiService';
 import { hasBookingConflict, isTimeSlotAvailable } from '../services/validationService';
 import { translations, Language } from '../translations';
@@ -10,8 +10,10 @@ import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 interface RoomDetailPanelProps {
   room: Room | null;
+  rooms: Room[]; // Added full list to allow shifting
   onClose: () => void;
   onUpdate: (updatedRoom: Room) => void;
+  onMoveReservation: (sourceRoomId: string, targetRoomId: string, reservation: Reservation) => void; // Added move callback
   lang: Language;
 }
 
@@ -73,7 +75,7 @@ const DateInput = ({ label, value, onChange, lang, error }: { label: string, val
   );
 };
 
-export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose, onUpdate, lang }) => {
+export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, onClose, onUpdate, onMoveReservation, lang }) => {
   const [editedRoom, setEditedRoom] = useState<Room | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState<string>('');
@@ -88,6 +90,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
   const [isAddingFutureRes, setIsAddingFutureRes] = useState(false);
   const [editingFutureResId, setEditingFutureResId] = useState<string | null>(null);
   const [futureRes, setFutureRes] = useState<Partial<Reservation>>({});
+  const [targetRoomId, setTargetRoomId] = useState<string>('');
 
   const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
   const [isConflict, setIsConflict] = useState(false);
@@ -143,6 +146,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
       setConfigPass('');
       setIsAddingFutureRes(false);
       setEditingFutureResId(null);
+      setTargetRoomId(room.id);
       
       resetFutureResForm();
     }
@@ -256,7 +260,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
   const applyFutureReservation = async () => {
     if (!futureRes.guestName || !futureRes.checkInDate || !futureRes.checkOutDate) return;
 
-    let updatedList = [...(editedRoom.futureReservations || [])];
     const resData: Reservation = {
         id: editingFutureResId || Date.now().toString(),
         guestName: futureRes.guestName,
@@ -268,6 +271,17 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
         source: futureRes.source || BookingSource.WALK_IN
     };
 
+    // Shifting to another room?
+    if (targetRoomId && targetRoomId !== room.id) {
+        onMoveReservation(room.id, targetRoomId, resData);
+        setIsAddingFutureRes(false);
+        setEditingFutureResId(null);
+        resetFutureResForm();
+        return;
+    }
+
+    // Saving locally to this room
+    let updatedList = [...(editedRoom.futureReservations || [])];
     if (editingFutureResId) {
         updatedList = updatedList.map(r => r.id === editingFutureResId ? resData : r);
     } else {
@@ -353,6 +367,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
   const handleEditFutureRes = (res: Reservation) => {
     setFutureRes(res);
     setEditingFutureResId(res.id);
+    setTargetRoomId(room.id);
     setIsAddingFutureRes(true);
   };
 
@@ -495,7 +510,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                 </div>
             ))}
             {!isAddingFutureRes && (
-                <button onClick={() => { setIsAddingFutureRes(true); resetFutureResForm(); }} className="w-full py-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 dark:hover:border-indigo-900 flex items-center justify-center gap-2 transition-all">
+                <button onClick={() => { setIsAddingFutureRes(true); resetFutureResForm(); setTargetRoomId(room.id); }} className="w-full py-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 dark:hover:border-indigo-900 flex items-center justify-center gap-2 transition-all">
                     <PlusCircle className="w-4 h-4" /> <span className="text-xs font-bold uppercase tracking-wider">{t.detail.addFutureRes}</span>
                 </button>
             )}
@@ -618,27 +633,44 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
           )}
 
           {isAddingFutureRes && (
-            <div className="p-4 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/10 animate-in slide-in-from-right-4 space-y-4">
+            <div className="p-4 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/10 animate-in slide-in-from-right-4 space-y-4 shadow-inner">
                 <div className="flex justify-between items-center">
-                    <h4 className="font-bold text-purple-800 dark:text-purple-400 flex items-center gap-2">
+                    <h4 className="font-bold text-purple-800 dark:text-purple-400 flex items-center gap-2 text-sm uppercase tracking-wider">
                         <CalendarDays className="w-4 h-4" /> 
                         {editingFutureResId ? 'Edit Reservation' : t.detail.futureGuest}
                     </h4>
-                    <button onClick={() => { setIsAddingFutureRes(false); setEditingFutureResId(null); }} className="text-xs text-rose-500 font-bold underline">{t.detail.cancelFuture}</button>
+                    <button onClick={() => { setIsAddingFutureRes(false); setEditingFutureResId(null); }} className="text-xs text-rose-500 font-bold underline px-2 py-1 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded transition-colors">{t.detail.cancelFuture}</button>
                 </div>
                 {!futureRes.guestName ? <GuestFinder onSelectGuest={handleGuestSelect} lang={lang} /> : (
                     <div className="bg-white dark:bg-slate-800 border border-purple-200 dark:border-purple-800 p-3 rounded-lg flex justify-between items-center shadow-sm">
-                        <div className="flex items-center gap-2"><UserIcon className="w-5 h-5" /> <div className="font-bold text-sm text-slate-900 dark:text-white">{futureRes.guestName}</div></div>
+                        <div className="flex items-center gap-2"><UserIcon className="w-5 h-5 text-purple-600" /> <div className="font-bold text-sm text-slate-900 dark:text-white">{futureRes.guestName}</div></div>
                         <button onClick={() => setFutureRes({...futureRes, guestName: undefined})} className="text-xs text-rose-500 hover:underline">Change</button>
                     </div>
                 )}
                 
-                <div className="flex items-center gap-3">
-                    <button type="button" onClick={() => setFutureRes({...futureRes, isHourly: !futureRes.isHourly})} className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${futureRes.isHourly ? 'bg-purple-600' : 'bg-slate-200 dark:bg-slate-700'}`}><span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${futureRes.isHourly ? 'translate-x-5' : 'translate-x-0'}`} /></button>
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer" onClick={() => setFutureRes({...futureRes, isHourly: !futureRes.isHourly})}><Clock className="w-4 h-4" /> {t.detail.hourly}</span>
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                        <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1 flex items-center gap-1">
+                            <Building2 className="w-3 h-3 text-purple-600" /> Assigned Room
+                        </label>
+                        <select 
+                            value={targetRoomId} 
+                            onChange={(e) => setTargetRoomId(e.target.value)}
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-none"
+                        >
+                            {rooms.map(r => (
+                                <option key={r.id} value={r.id}>
+                                    Room {r.number} {r.name ? `- ${r.name}` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="col-span-2 flex items-center gap-3 bg-white/40 dark:bg-black/10 p-2 rounded-lg border border-purple-100 dark:border-purple-800/30">
+                        <button type="button" onClick={() => setFutureRes({...futureRes, isHourly: !futureRes.isHourly})} className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${futureRes.isHourly ? 'bg-purple-600' : 'bg-slate-200 dark:bg-slate-700'}`}><span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${futureRes.isHourly ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer" onClick={() => setFutureRes({...futureRes, isHourly: !futureRes.isHourly})}><Clock className="w-4 h-4" /> {t.detail.hourly}</span>
+                    </div>
+
                     <div>
                         <DateInput label={t.detail.checkIn} value={futureRes.checkInDate} onChange={(val) => setFutureRes({...futureRes, checkInDate: val})} lang={lang} />
                         <select value={futureRes.checkInTime || '14:00'} onChange={(e) => setFutureRes({...futureRes, checkInTime: e.target.value})} className="w-full mt-2 p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white font-mono text-sm">
@@ -667,10 +699,10 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, onClose,
                 <button 
                     onClick={applyFutureReservation}
                     disabled={!futureRes.guestName}
-                    className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                     {editingFutureResId ? <Save className="w-4 h-4" /> : <PlusCircle className="w-4 h-4" />}
-                    {editingFutureResId ? 'Update Reservation' : 'Add to List'}
+                    {editingFutureResId ? (targetRoomId !== room.id ? 'Move Booking' : 'Update Reservation') : 'Add Reservation'}
                 </button>
             </div>
           )}
