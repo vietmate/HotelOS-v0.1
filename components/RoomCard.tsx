@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Room, RoomStatus, RoomType, InvoiceStatus } from '../types';
-import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, AlertTriangle, Calendar, CheckSquare, Square, FileCheck, DollarSign, FileText } from 'lucide-react';
+import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, AlertTriangle, Calendar, CheckSquare, Square, FileCheck, DollarSign, FileText, Heart } from 'lucide-react';
 import { translations, Language } from '../translations';
 
 interface RoomCardProps {
@@ -32,7 +32,7 @@ const getStatusColor = (status: RoomStatus, checkoutStatus: 'none' | 'soon' | 'o
 
 const getStatusIcon = (status: RoomStatus, isHourly: boolean) => {
   if ((status === RoomStatus.OCCUPIED || status === RoomStatus.RESERVED) && isHourly) {
-    return <Clock className="w-5 h-5 text-pink-500" />;
+    return <Heart className="w-5 h-5 text-pink-500" />;
   }
   switch (status) {
     case RoomStatus.AVAILABLE: return <BedDouble className="w-5 h-5" />;
@@ -184,13 +184,27 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
             {room.checkInDate && (
                 <div>
                     <div className="uppercase opacity-60 text-[9px]">{t.card.in}</div>
-                    <div className="font-mono leading-tight">{formatDate(room.checkInDate)}</div>
+                    <div className="font-mono leading-tight">
+                        {formatDate(room.checkInDate)}
+                        {isHourly && room.checkInTime && (
+                          <span className="block text-[11px] text-pink-600 dark:text-pink-400 font-black mt-0.5">
+                            {room.checkInTime}
+                          </span>
+                        )}
+                    </div>
                 </div>
             )}
             {room.checkOutDate && (
                 <div>
                     <div className="uppercase opacity-60 text-[9px]">{t.card.out}</div>
-                    <div className="font-mono leading-tight">{formatDate(room.checkOutDate)}</div>
+                    <div className="font-mono leading-tight">
+                        {formatDate(room.checkOutDate)}
+                        {isHourly && room.checkOutTime && (
+                          <span className="block text-[11px] text-pink-600 dark:text-pink-400 font-black mt-0.5">
+                            {room.checkOutTime}
+                          </span>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
@@ -214,7 +228,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
                 checkoutStatus === 'overdue' ? 'bg-rose-600 text-white border-rose-700 animate-pulse' : 
                 'bg-amber-400 text-amber-900 border-amber-500'}
           `}>
-              {isHourly ? <Clock className="w-3 h-3" /> : (checkoutStatus === 'overdue' ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />)}
+              {isHourly ? <Heart className="w-3 h-3" /> : (checkoutStatus === 'overdue' ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />)}
               {isHourly ? t.card.hourly : (checkoutStatus === 'overdue' ? t.card.overdue : t.card.checkoutSoon)}
           </div>
       )}

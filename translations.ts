@@ -323,7 +323,7 @@ export const translations = {
         kbtttMissing: "Thiếu KBTTT",
         invoicePending: "Cần HĐ",
         invoiceOk: "Đã HĐ",
-        hourly: "nghỉ giờ"
+        hourly: "Nghỉ Giờ"
     },
     alerts: {
       title: "Cần chú ý",
