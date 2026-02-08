@@ -10,7 +10,12 @@ interface RoomCardProps {
   lang: Language;
 }
 
-const getStatusColor = (status: RoomStatus, checkoutStatus: 'none' | 'soon' | 'overdue') => {
+const getStatusColor = (status: RoomStatus, checkoutStatus: 'none' | 'soon' | 'overdue', isHourly: boolean) => {
+  // Overdue and Soon take visual precedence but if hourly, we want the pink theme
+  if (status === RoomStatus.OCCUPIED && isHourly) {
+    return 'bg-pink-50 border-pink-300 text-pink-700 ring-2 ring-pink-100 ring-offset-0 animate-hourly dark:bg-pink-950/40 dark:border-pink-800/60 dark:text-pink-300 dark:ring-pink-900/30';
+  }
+
   if (checkoutStatus === 'overdue') return 'bg-white border-rose-500 text-rose-700 ring-2 ring-rose-200 ring-offset-1 dark:bg-slate-800 dark:border-rose-700 dark:text-rose-400 dark:ring-rose-900';
   if (checkoutStatus === 'soon') return 'bg-white border-amber-500 text-amber-700 ring-2 ring-amber-200 ring-offset-1 dark:bg-slate-800 dark:border-amber-600 dark:text-amber-400 dark:ring-amber-900';
 
@@ -24,7 +29,10 @@ const getStatusColor = (status: RoomStatus, checkoutStatus: 'none' | 'soon' | 'o
   }
 };
 
-const getStatusIcon = (status: RoomStatus) => {
+const getStatusIcon = (status: RoomStatus, isHourly: boolean) => {
+  if (status === RoomStatus.OCCUPIED && isHourly) {
+    return <Clock className="w-5 h-5 text-pink-500" />;
+  }
   switch (status) {
     case RoomStatus.AVAILABLE: return <BedDouble className="w-5 h-5" />;
     case RoomStatus.OCCUPIED: return <User className="w-5 h-5" />;
@@ -88,6 +96,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
 
   // Show primary guest name for both Occupied and Reserved status
   const isDirectlyBooked = (room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && room.guestName;
+  const isHourly = room.status === RoomStatus.OCCUPIED && room.isHourly;
 
   return (
     <div 
@@ -95,7 +104,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
       className={`
         relative p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 ease-in-out
         hover:shadow-xl hover:scale-[1.03] group flex flex-col
-        ${getStatusColor(room.status, checkoutStatus)}
+        ${getStatusColor(room.status, checkoutStatus, !!room.isHourly)}
       `}
     >
       <div className="flex justify-between items-start mb-2">
@@ -103,7 +112,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
           {room.name || room.number}
         </span>
         <div className="opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0">
-            {getStatusIcon(room.status)}
+            {getStatusIcon(room.status, !!room.isHourly)}
         </div>
       </div>
       
@@ -117,7 +126,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
           </div>
           
           {room.salePrice && room.status === RoomStatus.OCCUPIED && (
-              <div className="bg-white/80 dark:bg-black/30 px-2 py-1 rounded-md text-[10px] font-bold shadow-sm border border-current/10 flex items-center gap-1">
+              <div className={`px-2 py-1 rounded-md text-[10px] font-bold shadow-sm border border-current/10 flex items-center gap-1 ${isHourly ? 'bg-pink-100 dark:bg-pink-900/50' : 'bg-white/80 dark:bg-black/30'}`}>
                   <DollarSign className="w-3 h-3 opacity-80" />
                   <span className="text-xs font-black">{formatPriceShort(room.salePrice)}</span>
               </div>
@@ -128,13 +137,13 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
         {isDirectlyBooked ? (
           <div className="space-y-2">
               <div className="flex items-center">
-                  <span className="px-2.5 py-1 rounded-lg border border-current/20 bg-white/40 dark:bg-black/20 font-bold text-sm block truncate flex-1 shadow-sm">
+                  <span className={`px-2.5 py-1 rounded-lg border border-current/20 font-bold text-sm block truncate flex-1 shadow-sm ${isHourly ? 'bg-pink-200/50 dark:bg-pink-900/30' : 'bg-white/40 dark:bg-black/20'}`}>
                       {room.guestName}
                   </span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {room.bookingSource && (
-                    <span className="text-[9px] bg-white/50 dark:bg-black/20 border border-current/10 px-1.5 py-0.5 rounded-md inline-block font-bold opacity-80">
+                    <span className={`text-[9px] border border-current/10 px-1.5 py-0.5 rounded-md inline-block font-bold opacity-80 ${isHourly ? 'bg-pink-200/40 dark:bg-pink-900/20' : 'bg-white/50 dark:bg-black/20'}`}>
                         {t.sources[room.bookingSource]}
                     </span>
                 )}
@@ -168,7 +177,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
       </div>
 
       {showDates && (
-        <div className="mt-auto pt-3 border-t border-black/5 dark:border-white/10 text-[10px] grid grid-cols-2 gap-2 opacity-80 font-bold">
+        <div className={`mt-auto pt-3 border-t text-[10px] grid grid-cols-2 gap-2 opacity-80 font-bold ${isHourly ? 'border-pink-200 dark:border-pink-800' : 'border-black/5 dark:border-white/10'}`}>
             {room.checkInDate && (
                 <div>
                     <div className="uppercase opacity-60 text-[9px]">{t.card.in}</div>
@@ -195,13 +204,15 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
           </div>
       )}
 
-      {checkoutStatus !== 'none' && (
+      {(checkoutStatus !== 'none' || isHourly) && (
           <div className={`
               absolute -top-2 -right-2 px-2 py-1 rounded-full text-[10px] font-bold shadow-sm border flex items-center gap-1
-              ${checkoutStatus === 'overdue' ? 'bg-rose-600 text-white border-rose-700 animate-pulse' : 'bg-amber-400 text-amber-900 border-amber-500'}
+              ${isHourly ? 'bg-pink-600 text-white border-pink-700' : 
+                checkoutStatus === 'overdue' ? 'bg-rose-600 text-white border-rose-700 animate-pulse' : 
+                'bg-amber-400 text-amber-900 border-amber-500'}
           `}>
-              {checkoutStatus === 'overdue' ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-              {checkoutStatus === 'overdue' ? t.card.overdue : t.card.checkoutSoon}
+              {isHourly ? <Clock className="w-3 h-3" /> : (checkoutStatus === 'overdue' ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />)}
+              {isHourly ? t.card.hourly : (checkoutStatus === 'overdue' ? t.card.overdue : t.card.checkoutSoon)}
           </div>
       )}
     </div>

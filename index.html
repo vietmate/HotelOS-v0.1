@@ -17,6 +17,16 @@
                 850: '#1e293b',
                 950: '#020617',
               }
+            },
+            animation: {
+              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'soft-pink': 'soft-pink 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+              'soft-pink': {
+                '0%, 100%': { borderColor: 'rgba(244, 114, 182, 0.3)', boxShadow: '0 0 0 0 rgba(244, 114, 182, 0.1)' },
+                '50%': { borderColor: 'rgba(244, 114, 182, 0.8)', boxShadow: '0 0 15px 2px rgba(244, 114, 182, 0.2)' },
+              }
             }
           }
         }
@@ -32,6 +42,14 @@
       ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       .dark ::-webkit-scrollbar-thumb { background: #475569; }
       .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+      @keyframes pulse-pink-border {
+        0%, 100% { border-color: rgb(244 114 182 / 0.4); }
+        50% { border-color: rgb(244 114 182 / 1); }
+      }
+      .animate-hourly {
+        animation: pulse-pink-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
     </style>
   <script type="importmap">
 {

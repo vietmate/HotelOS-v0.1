@@ -108,7 +108,8 @@ export const translations = {
         kbtttOk: "KBTTT OK",
         kbtttMissing: "No KBTTT",
         invoicePending: "Invoice Req",
-        invoiceOk: "Invoice OK"
+        invoiceOk: "Invoice OK",
+        hourly: "Hourly Rate"
     },
     alerts: {
       title: "Attention Required",
@@ -321,7 +322,8 @@ export const translations = {
         kbtttOk: "Đã KBTTT",
         kbtttMissing: "Thiếu KBTTT",
         invoicePending: "Cần HĐ",
-        invoiceOk: "Đã HĐ"
+        invoiceOk: "Đã HĐ",
+        hourly: "nghỉ giờ"
     },
     alerts: {
       title: "Cần chú ý",
