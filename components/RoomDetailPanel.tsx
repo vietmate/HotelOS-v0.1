@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Room, RoomStatus, BookingSource, Guest, RoomHistoryEntry, Booking, BookingType, Reservation, InvoiceStatus } from '../types';
-import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon, Lock, Unlock, FileText, LogIn, Pencil, Building2 } from 'lucide-react';
+import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon, Lock, Unlock, FileText, LogIn, Pencil, Building2, StickyNote } from 'lucide-react';
 import { generateWelcomeMessage, getMaintenanceAdvice } from '../services/geminiService';
 import { hasBookingConflict, isTimeSlotAvailable } from '../services/validationService';
 import { translations, Language } from '../translations';
@@ -137,6 +137,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
       if (nextRoom.salePrice === undefined) nextRoom.salePrice = nextRoom.price;
       if (!nextRoom.history) nextRoom.history = [];
       if (!nextRoom.futureReservations) nextRoom.futureReservations = [];
+      if (nextRoom.notes === undefined) nextRoom.notes = '';
 
       setEditedRoom(nextRoom);
       setAiResponse('');
@@ -320,7 +321,8 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
               bookingSource: undefined,
               maintenanceIssue: undefined,
               salePrice: undefined,
-              isHourly: false
+              isHourly: false,
+              notes: ''
           };
       }
       const roomToSave = { ...editedRoom, ...updates };
@@ -357,7 +359,8 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
         history: newHistory,
         isIdScanned: false,
         invoiceStatus: InvoiceStatus.NONE,
-        maintenanceIssue: undefined
+        maintenanceIssue: undefined,
+        notes: ''
     };
     
     onUpdate(updatedRoom);
@@ -629,6 +632,21 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
                 )}
                 {aiResponse && <div className="mt-3 p-3 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-900 rounded-lg text-sm italic">"{aiResponse}"</div>}
               </div>
+            </div>
+          )}
+
+          {!isAddingFutureRes && (
+            <div className="bg-amber-50/50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-800/50 shadow-sm animate-in fade-in">
+              <h3 className="text-sm font-bold text-amber-800 dark:text-amber-400 mb-3 flex items-center gap-2">
+                <StickyNote className="w-4 h-4" /> {t.detail.roomNotes}
+              </h3>
+              <textarea 
+                value={editedRoom.notes || ''} 
+                onChange={(e) => setEditedRoom({...editedRoom, notes: e.target.value})} 
+                placeholder={t.detail.roomNotesPlaceholder} 
+                rows={3} 
+                className="w-full p-3 border border-amber-200 dark:border-amber-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/30 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-amber-300 text-sm"
+              />
             </div>
           )}
 

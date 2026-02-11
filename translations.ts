@@ -1,5 +1,4 @@
 
-
 import { RoomStatus, RoomType, BookingSource, InvoiceStatus } from './types';
 
 export type Language = 'en' | 'vi';
@@ -88,7 +87,9 @@ export const translations = {
       dateConflict: "Date Conflict Detected!",
       addFutureRes: "Add Future Reservation",
       futureGuest: "Future Guest Details",
-      cancelFuture: "Cancel Addition"
+      cancelFuture: "Cancel Addition",
+      roomNotes: "Stay Notes / Remarks",
+      roomNotesPlaceholder: "Add specific details about this stay, guest preferences, or issues..."
     },
     workflow: {
       markClean: "Mark Room Clean",
@@ -109,7 +110,8 @@ export const translations = {
         kbtttMissing: "No KBTTT",
         invoicePending: "Invoice Req",
         invoiceOk: "Invoice OK",
-        hourly: "Hourly Rate"
+        hourly: "Hourly Rate",
+        hasNotes: "Notes"
     },
     alerts: {
       title: "Attention Required",
@@ -285,7 +287,9 @@ export const translations = {
       dateConflict: "Phát hiện trùng lịch!",
       addFutureRes: "Thêm Đặt Phòng Trước",
       futureGuest: "Thông Tin Khách Đặt Trước",
-      cancelFuture: "Hủy Thêm"
+      cancelFuture: "Hủy Thêm",
+      roomNotes: "Ghi chú lưu trú / Nhắc nhở",
+      roomNotesPlaceholder: "Thêm chi tiết cụ thể về kỳ lưu trú này, sở thích của khách hoặc các vấn đề cần lưu ý..."
     },
     workflow: {
       markClean: "Xác nhận đã dọn",
@@ -306,7 +310,8 @@ export const translations = {
         kbtttMissing: "Thiếu KBTTT",
         invoicePending: "Cần HĐ",
         invoiceOk: "Đã HĐ",
-        hourly: "Nghỉ Giờ"
+        hourly: "Nghỉ Giờ",
+        hasNotes: "Ghi chú"
     },
     alerts: {
       title: "Cần chú ý",

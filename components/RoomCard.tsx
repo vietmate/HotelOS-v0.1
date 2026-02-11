@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Room, RoomStatus, RoomType, InvoiceStatus } from '../types';
-import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, AlertTriangle, Calendar, CheckSquare, Square, FileCheck, DollarSign, FileText, Heart } from 'lucide-react';
+import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, AlertTriangle, Calendar, CheckSquare, Square, FileCheck, DollarSign, FileText, Heart, Banknote, StickyNote } from 'lucide-react';
 import { translations, Language } from '../translations';
 
 interface RoomCardProps {
@@ -100,6 +100,8 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
   
   // Updated: isHourly now accounts for Reserved status if the room has the flag
   const isHourly = (room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && room.isHourly;
+  
+  const hasNotes = room.notes && room.notes.trim().length > 0;
 
   return (
     <div 
@@ -114,7 +116,8 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
         <span className="text-xl font-bold truncate pr-2" title={room.name || room.number}>
           {room.name || room.number}
         </span>
-        <div className="opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0">
+            {hasNotes && <StickyNote className="w-4 h-4 text-amber-500 fill-amber-100 dark:fill-amber-900/30" />}
             {getStatusIcon(room.status, !!room.isHourly)}
         </div>
       </div>
@@ -130,8 +133,8 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
           
           {room.salePrice && (room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && (
               <div className={`px-2 py-1 rounded-md text-[10px] font-bold shadow-sm border border-current/10 flex items-center gap-1 ${isHourly ? 'bg-pink-100 dark:bg-pink-900/50' : 'bg-white/80 dark:bg-black/30'}`}>
-                  <DollarSign className="w-3 h-3 opacity-80" />
-                  <span className="text-xs font-black">{formatPriceShort(room.salePrice)}</span>
+                  <Banknote className="w-3 h-3 opacity-80" />
+                  <span className="text-xs font-black">{formatPriceShort(room.salePrice)} VND</span>
               </div>
           )}
       </div>
@@ -165,12 +168,18 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
                   <div 
                       className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md font-bold border
                       ${room.isIdScanned 
-                          ? 'bg-emerald-100/50 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-200/50 dark:border-emerald-800/50' 
+                          ? 'bg-emerald-100/50 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/50' 
                           : 'bg-rose-100/80 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'}`}
                   >
                       {room.isIdScanned ? <FileCheck className="w-2.5 h-2.5" /> : <AlertTriangle className="w-2.5 h-2.5" />}
                       <span>{room.isIdScanned ? t.card.kbtttOk : t.card.kbtttMissing}</span>
                   </div>
+                )}
+                {hasNotes && (
+                    <div className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md font-bold border bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200/50 dark:border-amber-800/50">
+                        <StickyNote className="w-2.5 h-2.5" />
+                        <span>{t.card.hasNotes}</span>
+                    </div>
                 )}
               </div>
           </div>
