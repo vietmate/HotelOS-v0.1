@@ -6,7 +6,6 @@ import { RoomDetailPanel } from './components/RoomDetailPanel';
 import { OccupancyGauge } from './components/OccupancyGauge';
 import { StatsChart } from './components/StatsChart';
 import { PettyCashWidget } from './components/PettyCashWidget';
-import { QuickActionsWidget } from './components/QuickActionsWidget';
 import { CalendarView } from './components/CalendarView';
 import { NotesView } from './components/NotesView';
 import { GuestFinder } from './components/GuestFinder';
@@ -93,9 +92,9 @@ const generateInitialRooms = (): Room[] => {
 };
 
 type ViewMode = 'grid' | 'calendar' | 'notes' | 'employees';
-type WidgetId = 'quickActions' | 'pettyCash' | 'alerts' | 'occupancy' | 'stats';
+type WidgetId = 'pettyCash' | 'alerts' | 'occupancy' | 'stats';
 
-const DEFAULT_WIDGET_ORDER: WidgetId[] = ['quickActions', 'pettyCash', 'alerts', 'occupancy', 'stats'];
+const DEFAULT_WIDGET_ORDER: WidgetId[] = ['pettyCash', 'alerts', 'occupancy', 'stats'];
 
 export default function App() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -165,7 +164,7 @@ export default function App() {
         setHotelName(localStorage.getItem(STORAGE_KEY_HOTEL_NAME) || 'HotelOS');
         if (savedOrder) {
           const parsedOrder = JSON.parse(savedOrder);
-          setWidgetOrder(parsedOrder.filter((id: string) => id !== 'clock'));
+          setWidgetOrder(parsedOrder.filter((id: string) => id !== 'clock' && id !== 'quickActions'));
         }
 
         if (!isSupabaseConfigured()) {
@@ -201,7 +200,7 @@ export default function App() {
                 const nameSetting = settingsData.find(s => s.key === 'hotel_name');
                 if (nameSetting) setHotelName(nameSetting.value);
                 const orderSetting = settingsData.find(s => s.key === 'widget_order');
-                if (orderSetting) setWidgetOrder(orderSetting.value.filter((id: string) => id !== 'clock'));
+                if (orderSetting) setWidgetOrder(orderSetting.value.filter((id: string) => id !== 'clock' && id !== 'quickActions'));
             }
 
             setIsConnected(true);
@@ -316,12 +315,6 @@ export default function App() {
       }
   };
 
-  const handleQuickAction = (action: 'ADD_GUEST' | 'FILTER_AVAILABLE' | 'OPEN_NOTES') => {
-      if (action === 'ADD_GUEST') setIsGuestModalOpen(true);
-      else if (action === 'FILTER_AVAILABLE') { setFilter(RoomStatus.AVAILABLE); setViewMode('grid'); }
-      else if (action === 'OPEN_NOTES') setViewMode('notes');
-  };
-
   const handleGuestCreated = (guest: Guest) => {
       setIsGuestModalOpen(false);
       alert(`${translations[lang].guest.onboardSuccess}: ${guest.full_name}`);
@@ -429,7 +422,6 @@ export default function App() {
 
   const renderWidgetContent = (id: WidgetId) => {
       switch(id) {
-          case 'quickActions': return <QuickActionsWidget lang={lang} onAction={handleQuickAction} />;
           case 'pettyCash': return <PettyCashWidget lang={lang} />;
           case 'alerts': return renderAlertsWidget();
           case 'occupancy': return <div className="mb-8 flex flex-col items-center"><OccupancyGauge percentage={occupancyPercentage} label={t.occupancy} /></div>;
