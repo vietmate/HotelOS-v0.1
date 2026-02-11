@@ -19,7 +19,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
   });
   const [now, setNow] = useState(new Date());
 
-  // Update current time every minute to keep the red line moving
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(new Date());
@@ -27,7 +26,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
     return () => clearInterval(timer);
   }, []);
 
-  // Generate 14 days based on startDate
   const dates = useMemo(() => Array.from({ length: 14 }, (_, i) => {
     const d = new Date(startDate);
     d.setHours(0, 0, 0, 0);
@@ -36,7 +34,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
   }), [startDate]);
 
   const windowStartTime = dates[0].getTime();
-  const windowEndTime = dates[13].getTime() + 86400000; // End of the 14th day (midnight of the 15th)
+  const windowEndTime = dates[13].getTime() + 86400000; 
 
   const getDateString = (date: Date) => {
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -87,6 +85,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
   };
 
   const calculateBarPosition = (startStr: string, endStr: string, startTimeStr?: string, endTimeStr?: string) => {
+    if (!startStr || !endStr) return null;
     const start = new Date(`${startStr}T${startTimeStr || '14:00'}:00`).getTime();
     const end = new Date(`${endStr}T${endTimeStr || '12:00'}:00`).getTime();
 
@@ -102,7 +101,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
     return { left, width, isClippedLeft: start < windowStartTime, isClippedRight: end > windowEndTime };
   };
 
-  // Calculate the position of the "Now" red line as percentage of grid width (excluding label column)
   const nowPosition = useMemo(() => {
     const nowTime = now.getTime();
     if (nowTime < windowStartTime || nowTime > windowEndTime) return null;
@@ -112,6 +110,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
   const renderBarsForRow = (room: Room) => {
     const items: React.ReactNode[] = [];
 
+    // 1. Current Stay
     if ((room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && room.checkInDate && room.checkOutDate) {
       const pos = calculateBarPosition(room.checkInDate, room.checkOutDate, room.checkInTime, room.checkOutTime);
       if (pos) {
@@ -129,6 +128,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
       }
     }
 
+    // 2. Future Reservations
     if (room.futureReservations && room.futureReservations.length > 0) {
       room.futureReservations.forEach((res, idx) => {
         const pos = calculateBarPosition(res.checkInDate, res.checkOutDate, res.checkInTime, res.checkOutTime);
@@ -148,6 +148,26 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
       });
     }
 
+    // 3. Past Reservations (Archived stays) - BLACK THEME
+    if (room.pastReservations && room.pastReservations.length > 0) {
+      room.pastReservations.forEach((res, idx) => {
+        const pos = calculateBarPosition(res.checkInDate, res.checkOutDate, res.checkInTime, res.checkOutTime);
+        if (pos) {
+          items.push(
+            <div
+              key={`past-${room.id}-${idx}`}
+              className={`absolute top-2 bottom-2 flex items-center justify-center text-[10px] font-bold shadow-sm px-2 border-y bg-slate-900 border-black text-slate-400 dark:bg-black dark:border-slate-800 ${!pos.isClippedLeft ? 'rounded-l-md border-l' : ''} ${!pos.isClippedRight ? 'rounded-r-md border-r' : ''}`}
+              style={{ left: `${pos.left}%`, width: `${pos.width}%`, zIndex: 5, opacity: 0.8 }}
+            >
+              <span className="truncate w-full text-center px-1">
+                {res.guestName} (Past)
+              </span>
+            </div>
+          );
+        }
+      });
+    }
+
     return items;
   };
 
@@ -157,7 +177,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
         <div className="flex items-center gap-2">
             <button onClick={handlePrev} className="p-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors"><ChevronLeft className="w-5 h-5" /></button>
             <button onClick={handleToday} className="px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm font-bold text-slate-600 dark:text-slate-300">{t.calendar.today}</button>
-            {/* Fix: Merged duplicate className attributes on ChevronLeft */}
             <button onClick={handleNext} className="p-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors"><ChevronLeft className="w-5 h-5 transform rotate-180" /></button>
         </div>
         <div className="flex items-center gap-2">
@@ -169,7 +188,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
       <div className="overflow-auto flex-1 custom-scrollbar">
         <div className="min-w-[1200px] relative flex flex-col">
           
-          {/* Header Row */}
           <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 sticky top-0 z-30">
             <div className="w-32 p-3 font-bold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-40 shadow-sm">Room</div>
             {dates.map(date => {
@@ -183,10 +201,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
             })}
           </div>
 
-          {/* Grid Area with Relative Overlay */}
           <div className="relative">
-              
-              {/* NOW INDICATOR OVERLAY */}
               <div className="absolute top-0 bottom-0 left-32 right-0 pointer-events-none z-50">
                   {nowPosition !== null && (
                     <div 
@@ -203,10 +218,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
                   )}
               </div>
 
-              {/* Room Rows */}
               {rooms.map(room => (
                 <div key={room.id} className="flex border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group relative h-14">
-                    {/* Room Identifier Label (Fixed Width w-32 = 128px) */}
                     <div onClick={() => onRoomClick(room)} className="w-32 p-3 border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-white dark:bg-slate-800 group-hover:bg-slate-50 dark:group-hover:bg-slate-700/30 z-20 cursor-pointer flex flex-col justify-center">
                         <div className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate" title={room.name || room.number}>
                             {room.name || room.number}
@@ -216,7 +229,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
                         </div>
                     </div>
 
-                    {/* Date Grid Cells */}
                     <div className="flex-1 flex relative">
                        {dates.map(date => {
                          const isToday = isSameDay(date, getDateString(new Date()));
@@ -229,7 +241,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ rooms, onRoomClick, 
                          );
                        })}
                        
-                       {/* Booking Bars Overlay */}
                        <div className="absolute inset-0 pointer-events-none">
                           {renderBarsForRow(room)}
                        </div>

@@ -79,8 +79,8 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
   const [editedRoom, setEditedRoom] = useState<Room | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState<string>('');
-  const [showConfig, setShowConfig] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
   
   const [isConfigUnlocked, setIsConfigUnlocked] = useState(false);
   const [configPass, setConfigPass] = useState('');
@@ -136,6 +136,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
       if (nextRoom.paymentMethod === undefined) nextRoom.paymentMethod = PaymentMethod.CASH;
       if (!nextRoom.history) nextRoom.history = [];
       if (!nextRoom.futureReservations) nextRoom.futureReservations = [];
+      if (!nextRoom.pastReservations) nextRoom.pastReservations = [];
       if (nextRoom.notes === undefined) nextRoom.notes = '';
 
       setEditedRoom(nextRoom);
@@ -249,10 +250,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
           newHistory.unshift({ date: now, action: 'INFO', description: `Guest details updated: ${updatedRoom.guestName}` });
       }
 
-      if (!historyAdded && (room.number !== updatedRoom.number || room.name !== updatedRoom.name)) {
-          newHistory.unshift({ date: now, action: 'INFO', description: `Room config updated: ${updatedRoom.number} ${updatedRoom.name || ''}` });
-      }
-
       const roomToSave = { ...updatedRoom, history: newHistory };
       onUpdate(roomToSave);
       onClose();
@@ -308,10 +305,28 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
       if (!editedRoom) return;
       const newHistory = [...(editedRoom.history || [])];
       newHistory.unshift({ date: new Date().toISOString(), action: logAction, description: logDesc });
+      
       let updates: Partial<Room> = { status: targetStatus, history: newHistory };
+      
       if (editedRoom.status === RoomStatus.OCCUPIED && (targetStatus === RoomStatus.DIRTY || targetStatus === RoomStatus.AVAILABLE)) {
+          // ARCHIVE THE STAY BEFORE WIPING
+          const archivedStay: Reservation = {
+              id: `arch-${Date.now()}`,
+              guestName: editedRoom.guestName || 'Unknown Guest',
+              checkInDate: editedRoom.checkInDate || '',
+              checkOutDate: editedRoom.checkOutDate || '',
+              checkInTime: editedRoom.checkInTime,
+              checkOutTime: editedRoom.checkOutTime,
+              isHourly: editedRoom.isHourly,
+              source: editedRoom.bookingSource,
+              paymentMethod: editedRoom.paymentMethod
+          };
+
+          const updatedPast = [archivedStay, ...(editedRoom.pastReservations || [])];
+
           updates = {
               ...updates,
+              pastReservations: updatedPast,
               guestName: undefined,
               guestId: undefined,
               isIdScanned: false,
@@ -326,6 +341,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
               notes: ''
           };
       }
+
       const roomToSave = { ...editedRoom, ...updates };
       onUpdate(roomToSave);
       onClose();
@@ -418,10 +434,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
         alert(t.admin.wrongPass);
     }
   };
-
-  const canCheckIn = editedRoom.status === RoomStatus.AVAILABLE || editedRoom.status === RoomStatus.RESERVED;
-  const isOccupied = editedRoom.status === RoomStatus.OCCUPIED;
-  const isMaintenance = editedRoom.status === RoomStatus.MAINTENANCE;
 
   const renderWorkflowActions = () => {
       const status = editedRoom.status;
@@ -538,7 +550,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
         </div>
 
         <div className="space-y-6">
-          {(canCheckIn || isOccupied) && !isAddingFutureRes && (
+          {(editedRoom.status === RoomStatus.AVAILABLE || editedRoom.status === RoomStatus.RESERVED || editedRoom.status === RoomStatus.OCCUPIED) && !isAddingFutureRes && (
             <div className={`p-4 rounded-xl border shadow-sm animate-in fade-in ${isConflict ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'}`}>
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -777,7 +789,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
             </div>
           )}
 
-          {isMaintenance && (
+          {editedRoom.status === RoomStatus.MAINTENANCE && (
             <div className="bg-rose-50 dark:bg-rose-900/20 p-4 rounded-xl border border-rose-200 dark:border-rose-800/50 shadow-sm animate-in fade-in">
                <h3 className="text-lg font-bold text-rose-800 dark:text-rose-400 mb-4 flex items-center gap-2"><WrenchIcon className="w-5 h-5" /> {t.detail.maintenance}</h3>
                <div>

@@ -85,6 +85,7 @@ export interface Room {
   bookingSource?: BookingSource;
   invoiceStatus?: InvoiceStatus;
   futureReservations?: Reservation[];
+  pastReservations?: Reservation[]; // Added to track old stays
   isIdScanned?: boolean; 
   icalUrl?: string; 
   history?: RoomHistoryEntry[];
