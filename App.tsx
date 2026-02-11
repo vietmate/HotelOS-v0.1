@@ -20,6 +20,11 @@ const STORAGE_KEY_HOTEL_NAME = 'hotel_os_name';
 const STORAGE_KEY_EMPLOYEES = 'hotel_os_employees';
 const STORAGE_KEY_TIME_ENTRIES = 'hotel_os_time_entries';
 
+interface AppSetting {
+  key: string;
+  value: any;
+}
+
 const generateInitialRooms = (): Room[] => {
   const today = new Date();
   const yesterday = new Date(today); 
@@ -187,10 +192,11 @@ export default function App() {
         }
 
         if (settingsRes.data) {
-            const nameSetting = settingsRes.data.find(s => s.key === 'hotel_name');
+            const settings = settingsRes.data as AppSetting[];
+            const nameSetting = settings.find(s => s.key === 'hotel_name');
             if (nameSetting) setHotelName(nameSetting.value);
-            const orderSetting = settingsRes.data.find(s => s.key === 'widget_order');
-            if (orderSetting) setWidgetOrder(orderSetting.value.filter((id: string) => id !== 'clock' && id !== 'quickActions'));
+            const orderSetting = settings.find(s => s.key === 'widget_order');
+            if (orderSetting) setWidgetOrder((orderSetting.value as WidgetId[]).filter((id: string) => id !== 'clock' && id !== 'quickActions'));
         }
 
         setIsConnected(true);
@@ -257,8 +263,9 @@ export default function App() {
             setNotes(prev => ({ ...prev, [updated.date_key]: updated.content }));
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, payload => {
-            if (payload.new.key === 'hotel_name') setHotelName(payload.new.value);
-            if (payload.new.key === 'widget_order') setWidgetOrder(payload.new.value);
+            const newData = payload.new as AppSetting;
+            if (newData.key === 'hotel_name') setHotelName(newData.value);
+            if (newData.key === 'widget_order') setWidgetOrder(newData.value as WidgetId[]);
         })
         .subscribe();
 
@@ -350,7 +357,6 @@ export default function App() {
       if (isSupabaseConfigured()) await supabase.from('app_settings').upsert({ key: 'hotel_name', value: newName });
   };
 
-  // Fix for error in file App.tsx on line 539: Cannot find name 'handleGuestCreated'
   const handleGuestCreated = (guest: Guest) => {
     setIsGuestModalOpen(false);
   };
