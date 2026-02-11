@@ -149,127 +149,89 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch initial data
-  const fetchData = async () => {
-    setIsLoading(true);
-    
-    const savedRooms = localStorage.getItem(STORAGE_KEY_ROOMS);
-    const savedEmp = localStorage.getItem(STORAGE_KEY_EMPLOYEES);
-    const savedTime = localStorage.getItem(STORAGE_KEY_TIME_ENTRIES);
-    const savedOrder = localStorage.getItem('hotel_widget_order');
-    
-    setRooms(savedRooms ? JSON.parse(savedRooms) : generateInitialRooms());
-    setEmployees(savedEmp ? JSON.parse(savedEmp) : []);
-    setTimeEntries(savedTime ? JSON.parse(savedTime) : []);
-    setHotelName(localStorage.getItem(STORAGE_KEY_HOTEL_NAME) || 'HotelOS');
-    if (savedOrder) {
-      const parsedOrder = JSON.parse(savedOrder);
-      setWidgetOrder(parsedOrder.filter((id: string) => id !== 'clock' && id !== 'quickActions'));
-    }
-
-    if (!isSupabaseConfigured()) {
-        setIsConnected(false);
-        setIsLoading(false);
-        return;
-    }
-
-    try {
-        const { data: roomsData } = await supabase.from('rooms').select('*').order('id');
-        if (roomsData) {
-            const parsedRooms = roomsData.map(r => r.data as Room).sort((a,b) => parseInt(a.number) - parseInt(b.number));
-            setRooms(parsedRooms);
-        }
-
-        const { data: empData } = await supabase.from('employees').select('*');
-        if (empData) setEmployees(empData.map(r => r.data as Employee));
-
-        const { data: timeData } = await supabase.from('time_entries').select('*').order('created_at', { ascending: false });
-        if (timeData) setTimeEntries(timeData.map(r => r.data as TimeEntry));
-
-        const { data: settingsData } = await supabase.from('app_settings').select('*');
-        if (settingsData) {
-            const nameSetting = settingsData.find(s => s.key === 'hotel_name');
-            if (nameSetting) setHotelName(nameSetting.value);
-            const orderSetting = settingsData.find(s => s.key === 'widget_order');
-            if (orderSetting) setWidgetOrder(orderSetting.value.filter((id: string) => id !== 'clock' && id !== 'quickActions'));
-        }
-
-        setIsConnected(true);
-    } catch (error) {
-        console.error("Supabase load error:", error);
-        setIsConnected(false);
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchData = async () => {
+        setIsLoading(true);
+        
+        const savedRooms = localStorage.getItem(STORAGE_KEY_ROOMS);
+        const savedEmp = localStorage.getItem(STORAGE_KEY_EMPLOYEES);
+        const savedTime = localStorage.getItem(STORAGE_KEY_TIME_ENTRIES);
+        const savedOrder = localStorage.getItem('hotel_widget_order');
+        
+        setRooms(savedRooms ? JSON.parse(savedRooms) : generateInitialRooms());
+        setEmployees(savedEmp ? JSON.parse(savedEmp) : []);
+        setTimeEntries(savedTime ? JSON.parse(savedTime) : []);
+        setHotelName(localStorage.getItem(STORAGE_KEY_HOTEL_NAME) || 'HotelOS');
+        if (savedOrder) {
+          const parsedOrder = JSON.parse(savedOrder);
+          setWidgetOrder(parsedOrder.filter((id: string) => id !== 'clock' && id !== 'quickActions'));
+        }
+
+        if (!isSupabaseConfigured()) {
+            setIsConnected(false);
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const { data: roomsData } = await supabase.from('rooms').select('*').order('id');
+            if (roomsData && roomsData.length > 0) {
+                const parsedRooms = roomsData.map(r => r.data as Room).sort((a,b) => parseInt(a.number) - parseInt(b.number));
+                setRooms(parsedRooms);
+                localStorage.setItem(STORAGE_KEY_ROOMS, JSON.stringify(parsedRooms));
+            }
+
+            const { data: empData } = await supabase.from('employees').select('*');
+            if (empData && empData.length > 0) {
+                const cloudEmployees = empData.map(r => r.data as Employee);
+                setEmployees(cloudEmployees);
+                localStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(cloudEmployees));
+            }
+
+            const { data: timeData } = await supabase.from('time_entries').select('*').order('created_at', { ascending: false });
+            if (timeData && timeData.length > 0) {
+                const cloudEntries = timeData.map(r => r.data as TimeEntry);
+                setTimeEntries(cloudEntries);
+                localStorage.setItem(STORAGE_KEY_TIME_ENTRIES, JSON.stringify(cloudEntries));
+            }
+
+            const { data: settingsData } = await supabase.from('app_settings').select('*');
+            if (settingsData) {
+                const nameSetting = settingsData.find(s => s.key === 'hotel_name');
+                if (nameSetting) setHotelName(nameSetting.value);
+                const orderSetting = settingsData.find(s => s.key === 'widget_order');
+                if (orderSetting) setWidgetOrder(orderSetting.value.filter((id: string) => id !== 'clock' && id !== 'quickActions'));
+            }
+
+            setIsConnected(true);
+        } catch (error) {
+            console.error("Supabase load error:", error);
+            setIsConnected(false);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     fetchData();
-
-    // Setup Realtime Subscriptions
-    if (isSupabaseConfigured()) {
-      const channel = supabase
-        .channel('db-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, payload => {
-          if (payload.eventType === 'DELETE') {
-            setRooms(prev => prev.filter(r => r.id !== payload.old.id));
-          } else {
-            const newRoom = payload.new.data as Room;
-            setRooms(prev => {
-              const exists = prev.find(r => r.id === newRoom.id);
-              if (exists) return prev.map(r => r.id === newRoom.id ? newRoom : r);
-              return [...prev, newRoom].sort((a, b) => parseInt(a.number) - parseInt(b.number));
-            });
-          }
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, payload => {
-          if (payload.eventType === 'DELETE') {
-            setEmployees(prev => prev.filter(e => e.id !== payload.old.id));
-          } else {
-            const newEmp = payload.new.data as Employee;
-            setEmployees(prev => {
-              const exists = prev.find(e => e.id === newEmp.id);
-              if (exists) return prev.map(e => e.id === newEmp.id ? newEmp : e);
-              return [...prev, newEmp];
-            });
-          }
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'time_entries' }, payload => {
-          if (payload.eventType === 'DELETE') {
-            setTimeEntries(prev => prev.filter(t => t.id !== payload.old.id));
-          } else {
-            const newEntry = payload.new.data as TimeEntry;
-            setTimeEntries(prev => {
-              const exists = prev.find(t => t.id === newEntry.id);
-              if (exists) return prev.map(t => t.id === newEntry.id ? newEntry : t);
-              return [newEntry, ...prev];
-            });
-          }
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, payload => {
-          if (payload.new.key === 'hotel_name') setHotelName(payload.new.value);
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
   }, []);
 
   const handleRoomUpdate = async (updatedRoom: Room) => {
-    setRooms(prev => prev.map(r => r.id === updatedRoom.id ? updatedRoom : r));
-    localStorage.setItem(STORAGE_KEY_ROOMS, JSON.stringify(rooms.map(r => r.id === updatedRoom.id ? updatedRoom : r)));
+    const updatedRooms = rooms.map(r => r.id === updatedRoom.id ? updatedRoom : r);
+    setRooms(updatedRooms);
+    localStorage.setItem(STORAGE_KEY_ROOMS, JSON.stringify(updatedRooms));
+    
     if (isSupabaseConfigured()) {
-        await supabase.from('rooms').upsert({ id: updatedRoom.id, data: updatedRoom, updated_at: new Date().toISOString() });
+        await supabase.from('rooms').update({ data: updatedRoom, updated_at: new Date().toISOString() }).eq('id', updatedRoom.id);
     }
   };
 
   const handleMoveReservation = async (sourceRoomId: string, targetRoomId: string, reservation: Reservation) => {
       const sourceRoom = rooms.find(r => r.id === sourceRoomId);
       const targetRoom = rooms.find(r => r.id === targetRoomId);
+      
       if (!sourceRoom || !targetRoom) return;
 
+      // 1. Update source: remove reservation and log move
       const updatedSource: Room = {
           ...sourceRoom,
           futureReservations: sourceRoom.futureReservations?.filter(res => res.id !== reservation.id),
@@ -280,6 +242,7 @@ export default function App() {
           }, ...(sourceRoom.history || [])]
       };
 
+      // 2. Update target: add reservation and log move
       const updatedTarget: Room = {
           ...targetRoom,
           futureReservations: [...(targetRoom.futureReservations || []), reservation],
@@ -290,56 +253,47 @@ export default function App() {
           }, ...(targetRoom.history || [])]
       };
 
-      setRooms(prev => prev.map(r => r.id === sourceRoomId ? updatedSource : r.id === targetRoomId ? updatedTarget : r));
-      
+      // 3. Global update
+      const nextRooms = rooms.map(r => {
+          if (r.id === sourceRoomId) return updatedSource;
+          if (r.id === targetRoomId) return updatedTarget;
+          return r;
+      });
+
+      setRooms(nextRooms);
+      localStorage.setItem(STORAGE_KEY_ROOMS, JSON.stringify(nextRooms));
+
       if (isSupabaseConfigured()) {
           await Promise.all([
-              supabase.from('rooms').upsert({ id: sourceRoomId, data: updatedSource, updated_at: new Date().toISOString() }),
-              supabase.from('rooms').upsert({ id: targetRoomId, data: updatedTarget, updated_at: new Date().toISOString() })
+              supabase.from('rooms').update({ data: updatedSource, updated_at: new Date().toISOString() }).eq('id', sourceRoomId),
+              supabase.from('rooms').update({ data: updatedTarget, updated_at: new Date().toISOString() }).eq('id', targetRoomId)
           ]);
+      }
+      
+      // Clear selection if we were looking at the room we just moved a reservation from
+      if (selectedRoom?.id === sourceRoomId) {
+          setSelectedRoom(updatedSource);
       }
   };
 
-  const onUpdateEmployee = async (emp: Employee) => {
-    setEmployees(prev => prev.map(e => e.id === emp.id ? emp : e));
-    if (isSupabaseConfigured()) {
-        await supabase.from('employees').upsert({ id: emp.id, data: emp });
-    }
+  const handleEmployeesUpdate = async (updated: Employee[]) => {
+      setEmployees(updated);
+      localStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(updated));
+      if (isSupabaseConfigured()) {
+          for (const emp of updated) {
+              await supabase.from('employees').upsert({ id: emp.id, data: emp });
+          }
+      }
   };
 
-  const onAddEmployee = async (emp: Employee) => {
-    setEmployees(prev => [...prev, emp]);
-    if (isSupabaseConfigured()) {
-        await supabase.from('employees').insert({ id: emp.id, data: emp });
-    }
-  };
-
-  const onDeleteEmployee = async (id: string) => {
-    setEmployees(prev => prev.filter(e => e.id !== id));
-    if (isSupabaseConfigured()) {
-        await supabase.from('employees').delete().eq('id', id);
-    }
-  };
-
-  const onAddTimeEntry = async (entry: TimeEntry) => {
-    setTimeEntries(prev => [entry, ...prev]);
-    if (isSupabaseConfigured()) {
-        await supabase.from('time_entries').insert({ id: entry.id, data: entry });
-    }
-  };
-
-  const onUpdateTimeEntry = async (entry: TimeEntry) => {
-    setTimeEntries(prev => prev.map(t => t.id === entry.id ? entry : t));
-    if (isSupabaseConfigured()) {
-        await supabase.from('time_entries').upsert({ id: entry.id, data: entry });
-    }
-  };
-
-  const onDeleteTimeEntry = async (id: string) => {
-    setTimeEntries(prev => prev.filter(t => t.id !== id));
-    if (isSupabaseConfigured()) {
-        await supabase.from('time_entries').delete().eq('id', id);
-    }
+  const handleTimeEntriesUpdate = async (updated: TimeEntry[]) => {
+      setTimeEntries(updated);
+      localStorage.setItem(STORAGE_KEY_TIME_ENTRIES, JSON.stringify(updated));
+      if (isSupabaseConfigured()) {
+          for (const entry of updated) {
+              await supabase.from('time_entries').upsert({ id: entry.id, data: entry });
+          }
+      }
   };
 
   const handleNameSave = async (newName: string) => {
@@ -359,12 +313,6 @@ export default function App() {
       } else {
           localStorage.setItem('hotel_widget_order', JSON.stringify(newOrder));
       }
-  };
-
-  const handleQuickAction = (action: 'ADD_GUEST' | 'FILTER_AVAILABLE' | 'OPEN_NOTES') => {
-      if (action === 'ADD_GUEST') setIsGuestModalOpen(true);
-      else if (action === 'FILTER_AVAILABLE') { setFilter(RoomStatus.AVAILABLE); setViewMode('grid'); }
-      else if (action === 'OPEN_NOTES') setViewMode('notes');
   };
 
   const handleGuestCreated = (guest: Guest) => {
@@ -490,19 +438,7 @@ export default function App() {
     switch(viewMode) {
       case 'calendar': return <CalendarView rooms={filteredRooms} onRoomClick={setSelectedRoom} lang={lang} />;
       case 'notes': return <NotesView lang={lang} />;
-      case 'employees': return (
-        <EmployeesView 
-            lang={lang} 
-            employees={employees} 
-            onUpdateEmployee={onUpdateEmployee}
-            onAddEmployee={onAddEmployee}
-            onDeleteEmployee={onDeleteEmployee}
-            timeEntries={timeEntries} 
-            onAddTimeEntry={onAddTimeEntry}
-            onUpdateTimeEntry={onUpdateTimeEntry}
-            onDeleteTimeEntry={onDeleteTimeEntry}
-        />
-      );
+      case 'employees': return <EmployeesView lang={lang} employees={employees} onEmployeesUpdate={handleEmployeesUpdate} timeEntries={timeEntries} onTimeEntriesUpdate={handleTimeEntriesUpdate} />;
       case 'grid':
       default:
         return (
