@@ -7,12 +7,16 @@ import { User, Users, Plus, Briefcase, History, X, Shield, Wrench, Sparkles, Sea
 interface EmployeesViewProps {
   lang: Language;
   employees: Employee[];
-  onEmployeesUpdate: (updated: Employee[]) => void;
+  onUpdateEmployee: (emp: Employee) => void;
+  onAddEmployee: (emp: Employee) => void;
+  onDeleteEmployee: (id: string) => void;
   timeEntries: TimeEntry[];
-  onTimeEntriesUpdate: (updated: TimeEntry[]) => void;
+  onAddTimeEntry: (entry: TimeEntry) => void;
+  onUpdateTimeEntry: (entry: TimeEntry) => void;
+  onDeleteTimeEntry: (id: string) => void;
 }
 
-export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang, employees, onEmployeesUpdate, timeEntries, onTimeEntriesUpdate }) => {
+export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang, employees, onUpdateEmployee, onAddEmployee, onDeleteEmployee, timeEntries, onAddTimeEntry, onUpdateTimeEntry, onDeleteTimeEntry }) => {
   const t = translations[lang];
   
   const [isAddingEmp, setIsAddingEmp] = useState(false);
@@ -65,60 +69,62 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang, employees, o
         phone: '',
         reviewsHistory: {} 
     };
-    onEmployeesUpdate([...employees, emp]);
+    onAddEmployee(emp);
     setIsAddingEmp(false);
     setNewEmp({ name: '', role: 'Reception', hourlyRate: 0 });
   };
   
-  const handleUpdateEmployee = async () => {
+  const handleUpdateEmployeeProfile = async () => {
       if (!editingEmployee || !editingEmployee.name) return;
-      onEmployeesUpdate(employees.map(e => e.id === editingEmployee.id ? editingEmployee : e));
+      onUpdateEmployee(editingEmployee);
       setIsStaffModalOpen(false);
       setEditingEmployee(null);
   };
 
-  const handleDeleteEmployee = async (id: string) => {
+  const handleDeleteEmployeeLocal = async (id: string) => {
       if (!confirm(t.employees.deleteStaffConfirm)) return;
-      onEmployeesUpdate(employees.filter(e => e.id !== id));
+      onDeleteEmployee(id);
   };
 
   const handleIncrementReview = async (empId: string) => {
-      const updatedEmps = employees.map(e => {
-          if (e.id === empId) {
-              const currentHistory = e.reviewsHistory || {};
-              const newCount = (currentHistory[currentMonthKey] || 0) + 1;
-              return { 
-                  ...e, 
-                  reviewsHistory: { ...currentHistory, [currentMonthKey]: newCount },
-                  monthlyReviews: newCount
-              };
-          }
-          return e;
-      });
-      onEmployeesUpdate(updatedEmps);
+      const emp = employees.find(e => e.id === empId);
+      if (!emp) return;
+      const currentHistory = emp.reviewsHistory || {};
+      const newCount = (currentHistory[currentMonthKey] || 0) + 1;
+      const updatedEmp = { 
+          ...emp, 
+          reviewsHistory: { ...currentHistory, [currentMonthKey]: newCount },
+          monthlyReviews: newCount
+      };
+      onUpdateEmployee(updatedEmp);
   };
 
   const handleResetLeaderboardMonth = async () => {
       if (!confirm(`Reset reviews to 0 for ${leaderboardDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}?`)) return;
-      onEmployeesUpdate(employees.map(e => ({
-          ...e,
-          reviewsHistory: { ...(e.reviewsHistory || {}), [currentMonthKey]: 0 }
-      })));
+      employees.forEach(e => {
+          onUpdateEmployee({
+              ...e,
+              reviewsHistory: { ...(e.reviewsHistory || {}), [currentMonthKey]: 0 }
+          });
+      });
   };
 
   const handleClockIn = async (empId: string) => {
-    onEmployeesUpdate(employees.map(e => e.id === empId ? { ...e, isWorking: true } : e));
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) return;
+    onUpdateEmployee({ ...emp, isWorking: true });
     const newEntry: TimeEntry = { id: Date.now().toString(), employeeId: empId, clockIn: new Date().toISOString() };
-    onTimeEntriesUpdate([newEntry, ...timeEntries]);
+    onAddTimeEntry(newEntry);
   };
 
   const handleClockOut = async (empId: string) => {
-     const activeEntryIndex = timeEntries.findIndex(t => t.employeeId === empId && !t.clockOut);
-     if (activeEntryIndex === -1) return;
-     const updatedEntries = [...timeEntries];
-     updatedEntries[activeEntryIndex] = { ...timeEntries[activeEntryIndex], clockOut: new Date().toISOString(), totalPay: 0 };
-     onEmployeesUpdate(employees.map(e => e.id === empId ? { ...e, isWorking: false } : e));
-     onTimeEntriesUpdate(updatedEntries);
+     const emp = employees.find(e => e.id === empId);
+     if (!emp) return;
+     const activeEntry = timeEntries.find(t => t.employeeId === empId && !t.clockOut);
+     if (!activeEntry) return;
+     
+     onUpdateEmployee({ ...emp, isWorking: false });
+     onUpdateTimeEntry({ ...activeEntry, clockOut: new Date().toISOString(), totalPay: 0 });
   };
 
   const openEntryModal = (entry?: TimeEntry) => {
@@ -143,25 +149,27 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang, employees, o
       if (!emp) return;
       const startDate = new Date(entryForm.start);
       const endDate = entryForm.end ? new Date(entryForm.end) : undefined;
-      let updatedEntries = [...timeEntries];
+      
       if (editingEntry) {
-          updatedEntries = updatedEntries.map(e => e.id === editingEntry.id ? { ...e, employeeId: entryForm.employeeId, clockIn: startDate.toISOString(), clockOut: endDate?.toISOString() } : e);
+          onUpdateTimeEntry({ ...editingEntry, employeeId: entryForm.employeeId, clockIn: startDate.toISOString(), clockOut: endDate?.toISOString() });
           const wasWorking = !editingEntry.clockOut;
           const isNowWorking = !endDate;
-          if (wasWorking !== isNowWorking) onEmployeesUpdate(employees.map(e => e.id === emp.id ? { ...e, isWorking: isNowWorking } : e));
+          if (wasWorking !== isNowWorking) onUpdateEmployee({ ...emp, isWorking: isNowWorking });
       } else {
-          updatedEntries = [{ id: Date.now().toString(), employeeId: entryForm.employeeId, clockIn: startDate.toISOString(), clockOut: endDate?.toISOString() }, ...updatedEntries];
-          if (!endDate) onEmployeesUpdate(employees.map(e => e.id === emp.id ? { ...e, isWorking: true } : e));
+          onAddTimeEntry({ id: Date.now().toString(), employeeId: entryForm.employeeId, clockIn: startDate.toISOString(), clockOut: endDate?.toISOString() });
+          if (!endDate) onUpdateEmployee({ ...emp, isWorking: true });
       }
-      onTimeEntriesUpdate(updatedEntries);
       setIsEntryModalOpen(false);
   };
 
-  const handleDeleteEntry = async (id: string) => {
+  const handleDeleteEntryLocal = async (id: string) => {
       if (!confirm(t.employees.deleteConfirm)) return;
       const entry = timeEntries.find(e => e.id === id);
-      if (entry && !entry.clockOut) onEmployeesUpdate(employees.map(e => e.id === entry.employeeId ? { ...e, isWorking: false } : e));
-      onTimeEntriesUpdate(timeEntries.filter(e => e.id !== id));
+      if (entry && !entry.clockOut) {
+          const emp = employees.find(e => e.id === entry.employeeId);
+          if (emp) onUpdateEmployee({ ...emp, isWorking: false });
+      }
+      onDeleteTimeEntry(id);
   };
 
   const formatDuration = (start: string, end?: string) => {
@@ -226,7 +234,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang, employees, o
                          <div className="flex items-center gap-2">
                              <button onClick={() => handleIncrementReview(emp.id)} className="p-1.5 text-amber-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Star className="w-4 h-4" /></button>
                              <button onClick={() => { setEditingEmployee({...emp, reviewsHistory: emp.reviewsHistory || {}}); setIsStaffModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Edit2 className="w-4 h-4" /></button>
-                             <button onClick={() => handleDeleteEmployee(emp.id)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button>
+                             <button onClick={() => handleDeleteEmployeeLocal(emp.id)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button>
                              {emp.isWorking ? <button onClick={() => handleClockOut(emp.id)} className="px-3 py-1.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold hover:bg-rose-100 dark:bg-rose-900/20 dark:border-rose-800 dark:text-rose-400">{t.employees.clockOut}</button> : <button onClick={() => handleClockIn(emp.id)} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400">{t.employees.clockIn}</button>}
                          </div>
                      </div>
@@ -270,7 +278,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang, employees, o
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                           {filteredEntries.map(entry => {
                               const emp = employees.find(e => e.id === entry.employeeId) || { name: 'Unknown', role: 'Staff' };
-                              return (<tr key={entry.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group"><td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200"><div className="flex items-center gap-2">{emp.name}<span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1.5 rounded text-slate-500">{emp.role}</span></div></td><td className="px-4 py-3 text-slate-600 dark:text-slate-400">{new Date(entry.clockIn).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td className="px-4 py-3 text-slate-600 dark:text-slate-400">{!entry.clockOut ? <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full animate-pulse">{t.employees.working}</span> : new Date(entry.clockOut).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</td><td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-400">{formatDuration(entry.clockIn, entry.clockOut)}</td><td className="px-4 py-3 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => openEntryModal(entry)} className="p-1 hover:bg-indigo-50 dark:hover:bg-indigo-900 text-indigo-500 rounded"><Edit2 className="w-3.5 h-3.5" /></button><button onClick={() => handleDeleteEntry(entry.id)} className="p-1 hover:bg-rose-50 dark:hover:bg-rose-900 text-rose-500 rounded"><Trash2 className="w-3.5 h-3.5" /></button></td></tr>);
+                              return (<tr key={entry.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group"><td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200"><div className="flex items-center gap-2">{emp.name}<span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1.5 rounded text-slate-500">{emp.role}</span></div></td><td className="px-4 py-3 text-slate-600 dark:text-slate-400">{new Date(entry.clockIn).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td className="px-4 py-3 text-slate-600 dark:text-slate-400">{!entry.clockOut ? <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full animate-pulse">{t.employees.working}</span> : new Date(entry.clockOut).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</td><td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-400">{formatDuration(entry.clockIn, entry.clockOut)}</td><td className="px-4 py-3 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => openEntryModal(entry)} className="p-1 hover:bg-indigo-50 dark:hover:bg-indigo-900 text-indigo-500 rounded"><Edit2 className="w-3.5 h-3.5" /></button><button onClick={() => handleDeleteEntryLocal(entry.id)} className="p-1 hover:bg-rose-50 dark:hover:bg-rose-900 text-rose-500 rounded"><Trash2 className="w-3.5 h-3.5" /></button></td></tr>);
                           })}
                           {filteredEntries.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 italic">No shifts found matching your filters.</td></tr>}
                       </tbody>
@@ -299,7 +307,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({ lang, employees, o
                       <div><label className="block text-xs uppercase text-slate-500 dark:text-slate-400 font-bold mb-1">{t.employees.name}</label><input className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white text-sm" value={editingEmployee.name} onChange={e => setEditingEmployee({...editingEmployee, name: e.target.value})} /></div>
                       <div><label className="block text-xs uppercase text-slate-500 dark:text-slate-400 font-bold mb-1">{t.employees.role}</label><select className="w-full p-2 text-sm border border-slate-300 rounded bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={editingEmployee.role} onChange={e => setEditingEmployee({...editingEmployee, role: e.target.value as EmployeeRole})}><option value="Reception">Reception</option><option value="Housekeeping">Housekeeping</option><option value="Maintenance">Maintenance</option><option value="Security">Security</option><option value="Manager">Manager</option></select></div>
                       <div><label className="block text-xs uppercase text-slate-500 dark:text-slate-400 font-bold mb-1">{t.employees.adjustReviews} ({leaderboardDate.toLocaleDateString(undefined, {month:'short'})})</label><div className="flex items-center gap-2"><div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-lg text-amber-600 dark:text-amber-400"><Star className="w-4 h-4 fill-current" /></div><input type="number" min="0" className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white text-sm" value={getReviewCount(editingEmployee, currentMonthKey)} onChange={e => { const val = parseInt(e.target.value) || 0; setEditingEmployee({ ...editingEmployee, reviewsHistory: { ...(editingEmployee.reviewsHistory || {}), [currentMonthKey]: val } }); }} /></div></div>
-                      <div className="pt-2"><button onClick={handleUpdateEmployee} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors">{t.employees.save}</button></div>
+                      <div className="pt-2"><button onClick={handleUpdateEmployeeProfile} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors">{t.employees.save}</button></div>
                   </div>
               </div>
           </div>
