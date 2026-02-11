@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Room, RoomStatus, RoomType, InvoiceStatus } from '../types';
-import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, AlertTriangle, Calendar, CheckSquare, Square, FileCheck, DollarSign, FileText, Heart, Banknote, StickyNote } from 'lucide-react';
+import { Room, RoomStatus, RoomType, InvoiceStatus, PaymentMethod } from '../types';
+import { BedDouble, User, Wrench, SprayCan, CalendarCheck, Users, Clock, AlertTriangle, Calendar, CheckSquare, Square, FileCheck, DollarSign, FileText, Heart, Banknote, StickyNote, CreditCard, QrCode, Ticket } from 'lucide-react';
 import { translations, Language } from '../translations';
 
 interface RoomCardProps {
@@ -11,8 +11,6 @@ interface RoomCardProps {
 }
 
 const getStatusColor = (status: RoomStatus, checkoutStatus: 'none' | 'soon' | 'overdue', isHourly: boolean) => {
-  // Overdue and Soon take visual precedence but if hourly, we want the pink theme
-  // Updated: Now applies to both OCCUPIED and RESERVED status if marked as hourly
   if ((status === RoomStatus.OCCUPIED || status === RoomStatus.RESERVED) && isHourly) {
     return 'bg-pink-50 border-pink-300 text-pink-700 ring-2 ring-pink-100 ring-offset-0 animate-hourly dark:bg-pink-950/40 dark:border-pink-800/60 dark:text-pink-300 dark:ring-pink-900/30';
   }
@@ -40,6 +38,16 @@ const getStatusIcon = (status: RoomStatus, isHourly: boolean) => {
     case RoomStatus.DIRTY: return <SprayCan className="w-5 h-5" />;
     case RoomStatus.MAINTENANCE: return <Wrench className="w-5 h-5" />;
     case RoomStatus.RESERVED: return <CalendarCheck className="w-5 h-5" />;
+    default: return null;
+  }
+};
+
+const getPaymentIcon = (method?: PaymentMethod) => {
+  switch (method) {
+    case PaymentMethod.CASH: return <Banknote className="w-3.5 h-3.5" />;
+    case PaymentMethod.CARD: return <CreditCard className="w-3.5 h-3.5" />;
+    case PaymentMethod.QR_TRANSFER: return <QrCode className="w-3.5 h-3.5" />;
+    case PaymentMethod.PREPAID: return <Ticket className="w-3.5 h-3.5" />;
     default: return null;
   }
 };
@@ -95,12 +103,8 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
       ? [...room.futureReservations].sort((a, b) => a.checkInDate.localeCompare(b.checkInDate))[0]
       : null;
 
-  // Show primary guest name for both Occupied and Reserved status
   const isDirectlyBooked = (room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && room.guestName;
-  
-  // Updated: isHourly now accounts for Reserved status if the room has the flag
   const isHourly = (room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && room.isHourly;
-  
   const hasNotes = room.notes && room.notes.trim().length > 0;
 
   return (
@@ -133,7 +137,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onClick, lang }) => {
           
           {room.salePrice && (room.status === RoomStatus.OCCUPIED || room.status === RoomStatus.RESERVED) && (
               <div className={`px-2 py-1 rounded-md text-[10px] font-bold shadow-sm border border-current/10 flex items-center gap-1 ${isHourly ? 'bg-pink-100 dark:bg-pink-900/50' : 'bg-white/80 dark:bg-black/30'}`}>
-                  <Banknote className="w-3 h-3 opacity-80" />
+                  {getPaymentIcon(room.paymentMethod) || <Banknote className="w-3 h-3 opacity-80" />}
                   <span className="text-xs font-black">{formatPriceShort(room.salePrice)} VND</span>
               </div>
           )}

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Room, RoomStatus, BookingSource, Guest, RoomHistoryEntry, Booking, BookingType, Reservation, InvoiceStatus } from '../types';
-import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon, Lock, Unlock, FileText, LogIn, Pencil, Building2, StickyNote } from 'lucide-react';
+import { Room, RoomStatus, BookingSource, Guest, RoomHistoryEntry, Booking, BookingType, Reservation, InvoiceStatus, PaymentMethod } from '../types';
+import { X, Sparkles, Check, Trash2, Save, ArrowRight, Settings, Users, Clock, CalendarDays, FileCheck, DollarSign, UserCheck, History, ArrowDown, ShieldAlert, PlayCircle, StopCircle, RefreshCw, AlertOctagon, PlusCircle, User as UserIcon, Lock, Unlock, FileText, LogIn, Pencil, Building2, StickyNote, CreditCard, QrCode, Banknote, Ticket } from 'lucide-react';
 import { generateWelcomeMessage, getMaintenanceAdvice } from '../services/geminiService';
 import { hasBookingConflict, isTimeSlotAvailable } from '../services/validationService';
 import { translations, Language } from '../translations';
@@ -10,10 +10,10 @@ import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 interface RoomDetailPanelProps {
   room: Room | null;
-  rooms: Room[]; // Added full list to allow shifting
+  rooms: Room[]; 
   onClose: () => void;
   onUpdate: (updatedRoom: Room) => void;
-  onMoveReservation: (sourceRoomId: string, targetRoomId: string, reservation: Reservation) => void; // Added move callback
+  onMoveReservation: (sourceRoomId: string, targetRoomId: string, reservation: Reservation) => void; 
   lang: Language;
 }
 
@@ -82,11 +82,9 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
   const [showConfig, setShowConfig] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   
-  // Admin Config Lock State
   const [isConfigUnlocked, setIsConfigUnlocked] = useState(false);
   const [configPass, setConfigPass] = useState('');
 
-  // Future Reservation Form State
   const [isAddingFutureRes, setIsAddingFutureRes] = useState(false);
   const [editingFutureResId, setEditingFutureResId] = useState<string | null>(null);
   const [futureRes, setFutureRes] = useState<Partial<Reservation>>({});
@@ -135,6 +133,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
       if (nextRoom.isIdScanned === undefined) nextRoom.isIdScanned = false;
       if (nextRoom.invoiceStatus === undefined) nextRoom.invoiceStatus = InvoiceStatus.NONE;
       if (nextRoom.salePrice === undefined) nextRoom.salePrice = nextRoom.price;
+      if (nextRoom.paymentMethod === undefined) nextRoom.paymentMethod = PaymentMethod.CASH;
       if (!nextRoom.history) nextRoom.history = [];
       if (!nextRoom.futureReservations) nextRoom.futureReservations = [];
       if (nextRoom.notes === undefined) nextRoom.notes = '';
@@ -173,7 +172,8 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
       checkInTime: '14:00',
       checkOutTime: '12:00',
       isHourly: false,
-      source: BookingSource.WALK_IN
+      source: BookingSource.WALK_IN,
+      paymentMethod: PaymentMethod.CASH
     });
   };
 
@@ -222,7 +222,8 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
                check_in_at: new Date(startDateTime).toISOString(),
                check_out_at: new Date(endDateTime).toISOString(),
                booking_type: type,
-               status: 'CHECKED_IN'
+               status: 'CHECKED_IN',
+               payment_method: updatedRoom.paymentMethod
            });
       }
 
@@ -235,7 +236,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
          let desc = `Status changed: ${t.status[room.status]} -> ${t.status[updatedRoom.status]}`;
          if (room.status === RoomStatus.AVAILABLE && updatedRoom.status === RoomStatus.OCCUPIED) {
              action = 'CHECK_IN';
-             desc = `Check-in: ${updatedRoom.guestName || 'Unknown Guest'} (${updatedRoom.isHourly ? 'Hourly' : 'Standard'})`;
+             desc = `Check-in: ${updatedRoom.guestName || 'Unknown Guest'} (${updatedRoom.isHourly ? 'Hourly' : 'Standard'}) via ${t.payments[updatedRoom.paymentMethod || PaymentMethod.CASH]}`;
          } else if (room.status === RoomStatus.OCCUPIED && (updatedRoom.status === RoomStatus.DIRTY || updatedRoom.status === RoomStatus.AVAILABLE)) {
              action = 'CHECK_OUT';
              desc = `Check-out: ${room.guestName || 'Unknown Guest'}`;
@@ -269,10 +270,10 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
         checkInTime: futureRes.checkInTime || '14:00',
         checkOutTime: futureRes.checkOutTime || '12:00',
         isHourly: !!futureRes.isHourly,
-        source: futureRes.source || BookingSource.WALK_IN
+        source: futureRes.source || BookingSource.WALK_IN,
+        paymentMethod: futureRes.paymentMethod || PaymentMethod.CASH
     };
 
-    // Shifting to another room?
     if (targetRoomId && targetRoomId !== room.id) {
         onMoveReservation(room.id, targetRoomId, resData);
         setIsAddingFutureRes(false);
@@ -281,7 +282,6 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
         return;
     }
 
-    // Saving locally to this room
     let updatedList = [...(editedRoom.futureReservations || [])];
     if (editingFutureResId) {
         updatedList = updatedList.map(r => r.id === editingFutureResId ? resData : r);
@@ -321,6 +321,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
               bookingSource: undefined,
               maintenanceIssue: undefined,
               salePrice: undefined,
+              paymentMethod: undefined,
               isHourly: false,
               notes: ''
           };
@@ -355,6 +356,7 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
         checkOutTime: res.checkOutTime || '12:00',
         isHourly: !!res.isHourly,
         bookingSource: res.source || BookingSource.WALK_IN,
+        paymentMethod: res.paymentMethod || PaymentMethod.CASH,
         futureReservations: editedRoom.futureReservations?.filter(r => r.id !== res.id),
         history: newHistory,
         isIdScanned: false,
@@ -439,6 +441,16 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
       return null;
   };
 
+  const getPaymentIcon = (method?: PaymentMethod) => {
+    switch (method) {
+      case PaymentMethod.CASH: return <Banknote className="w-4 h-4" />;
+      case PaymentMethod.CARD: return <CreditCard className="w-4 h-4" />;
+      case PaymentMethod.QR_TRANSFER: return <QrCode className="w-4 h-4" />;
+      case PaymentMethod.PREPAID: return <Ticket className="w-4 h-4" />;
+      default: return <DollarSign className="w-4 h-4" />;
+    }
+  };
+
   return (
     <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-white dark:bg-slate-900 shadow-2xl transform transition-transform duration-300 ease-in-out border-l border-slate-200 dark:border-slate-800 z-50 overflow-y-auto">
       <div className="p-6 pb-24">
@@ -479,6 +491,12 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
                             {res.isHourly && (
                                 <span className="text-[9px] bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800 px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-1">
                                     <Clock className="w-2 h-2" /> {t.card.hourly}
+                                </span>
+                            )}
+                            {res.paymentMethod && (
+                                <span className="text-[9px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-bold border border-indigo-100 dark:border-indigo-800 flex items-center gap-1">
+                                    {getPaymentIcon(res.paymentMethod)}
+                                    {t.payments[res.paymentMethod]}
                                 </span>
                             )}
                         </div>
@@ -559,18 +577,36 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
                   </div>
                 </div>
 
-                <div>
-                   <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.salePrice}</label>
-                   <div className="relative">
-                       <input 
-                            type="number"
-                            value={editedRoom.salePrice}
-                            onChange={(e) => setEditedRoom({...editedRoom, salePrice: parseFloat(e.target.value) || 0})}
-                            className="w-full p-2 pl-8 pr-12 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-sm"
-                       />
-                       <DollarSign className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
-                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">VND</span>
-                   </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.salePrice}</label>
+                        <div className="relative">
+                            <input 
+                                    type="number"
+                                    value={editedRoom.salePrice}
+                                    onChange={(e) => setEditedRoom({...editedRoom, salePrice: parseFloat(e.target.value) || 0})}
+                                    className="w-full p-2 pl-8 pr-4 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-sm"
+                            />
+                            <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">VND</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.paymentMethod}</label>
+                        <div className="relative">
+                            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400">
+                                {getPaymentIcon(editedRoom.paymentMethod)}
+                            </div>
+                            <select
+                                value={editedRoom.paymentMethod || PaymentMethod.CASH}
+                                onChange={(e) => setEditedRoom({...editedRoom, paymentMethod: e.target.value as PaymentMethod})}
+                                className="w-full pl-9 p-2 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold"
+                            >
+                                {Object.values(PaymentMethod).map(method => (
+                                    <option key={method} value={method}>{t.payments[method]}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -702,18 +738,34 @@ export const RoomDetailPanel: React.FC<RoomDetailPanelProps> = ({ room, rooms, o
                         </select>
                     </div>
                 </div>
-                <div>
-                    <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.bookingSource}</label>
-                    <select
-                          value={futureRes.source || BookingSource.WALK_IN}
-                          onChange={(e) => setFutureRes({...futureRes, source: e.target.value as BookingSource})}
-                          className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
-                      >
-                          {Object.values(BookingSource).map(src => (
-                              <option key={src} value={src}>{t.sources[src]}</option>
-                          ))}
-                    </select>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.bookingSource}</label>
+                        <select
+                            value={futureRes.source || BookingSource.WALK_IN}
+                            onChange={(e) => setFutureRes({...futureRes, source: e.target.value as BookingSource})}
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+                        >
+                            {Object.values(BookingSource).map(src => (
+                                <option key={src} value={src}>{t.sources[src]}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs uppercase text-slate-700 dark:text-slate-300 font-bold mb-1">{t.detail.paymentMethod}</label>
+                        <select
+                            value={futureRes.paymentMethod || PaymentMethod.CASH}
+                            onChange={(e) => setFutureRes({...futureRes, paymentMethod: e.target.value as PaymentMethod})}
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+                        >
+                            {Object.values(PaymentMethod).map(method => (
+                                <option key={method} value={method}>{t.payments[method]}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
+
                 <button 
                     onClick={applyFutureReservation}
                     disabled={!futureRes.guestName}

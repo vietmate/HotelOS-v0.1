@@ -1,5 +1,5 @@
 
-import { RoomStatus, RoomType, BookingSource, InvoiceStatus } from './types';
+import { RoomStatus, RoomType, BookingSource, InvoiceStatus, PaymentMethod } from './types';
 
 export type Language = 'en' | 'vi';
 
@@ -47,6 +47,12 @@ export const translations = {
       [BookingSource.WALK_IN]: "Walk-In",
       [BookingSource.OTHER]: "Other"
     },
+    payments: {
+      [PaymentMethod.CASH]: "Cash",
+      [PaymentMethod.CARD]: "Card",
+      [PaymentMethod.QR_TRANSFER]: "QR / Transfer",
+      [PaymentMethod.PREPAID]: "Prepaid"
+    },
     invoice: {
       [InvoiceStatus.NONE]: "No invoice requested",
       [InvoiceStatus.REQUIRED]: "Required (at checkout)",
@@ -77,6 +83,7 @@ export const translations = {
       kbtttLabel: "KBTTT Declaration (ID Scan)",
       kbtttDesc: "Guest ID/Passport scanned & recorded",
       salePrice: "Sale Price (VND)",
+      paymentMethod: "Payment Method",
       icalLabel: "Booking.com Calendar Link (iCal)",
       syncIcal: "Sync Calendar",
       syncing: "Syncing...",
@@ -247,6 +254,12 @@ export const translations = {
       [BookingSource.WALK_IN]: "Khách vãng lai",
       [BookingSource.OTHER]: "Khác"
     },
+    payments: {
+      [PaymentMethod.CASH]: "Tiền mặt",
+      [PaymentMethod.CARD]: "Quẹt thẻ",
+      [PaymentMethod.QR_TRANSFER]: "QR / Chuyển khoản",
+      [PaymentMethod.PREPAID]: "Đã trả trước"
+    },
     invoice: {
       [InvoiceStatus.NONE]: "Không yêu cầu",
       [InvoiceStatus.REQUIRED]: "Cần hóa đơn (khi trả phòng)",
@@ -277,6 +290,7 @@ export const translations = {
       kbtttLabel: "Khai báo tạm trú (KBTTT)",
       kbtttDesc: "Đã quét CCCD/Hộ chiếu khách",
       salePrice: "Giá bán (VND)",
+      paymentMethod: "Phương thức thanh toán",
       icalLabel: "Liên kết Lịch Booking.com (iCal)",
       syncIcal: "Đồng bộ Lịch",
       syncing: "Đang đồng bộ...",

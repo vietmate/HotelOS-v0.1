@@ -1,5 +1,4 @@
 
-
 export enum RoomStatus {
   AVAILABLE = 'AVAILABLE',
   OCCUPIED = 'OCCUPIED',
@@ -28,6 +27,13 @@ export enum InvoiceStatus {
   PROVIDED = 'PROVIDED'
 }
 
+export enum PaymentMethod {
+  CASH = 'CASH',
+  CARD = 'CARD',
+  QR_TRANSFER = 'QR_TRANSFER',
+  PREPAID = 'PREPAID'
+}
+
 export interface Reservation {
   id: string;
   guestName: string;
@@ -37,6 +43,7 @@ export interface Reservation {
   checkOutTime?: string;
   isHourly?: boolean;
   source?: BookingSource;
+  paymentMethod?: PaymentMethod;
 }
 
 export interface Guest {
@@ -65,6 +72,7 @@ export interface Room {
   status: RoomStatus;
   price: number; 
   salePrice?: number; 
+  paymentMethod?: PaymentMethod;
   guestName?: string;
   guestId?: string; 
   checkInDate?: string;
@@ -125,9 +133,9 @@ export interface Booking {
   booking_type: BookingType;
   status: 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED' | 'RESERVED';
   created_at?: string;
+  payment_method?: PaymentMethod;
 }
 
-// Added Employee types for staff management
 export type EmployeeRole = 'Reception' | 'Housekeeping' | 'Maintenance' | 'Security' | 'Manager';
 
 export interface Employee {
