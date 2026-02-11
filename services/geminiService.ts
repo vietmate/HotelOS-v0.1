@@ -4,7 +4,8 @@ import { Room } from "../types";
 import { Language } from "../translations";
 
 // Initialize Gemini client with API Key from process.env
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const modelName = 'gemini-3-flash-preview';
 
