@@ -1,4 +1,5 @@
 
+
 export enum RoomStatus {
   AVAILABLE = 'AVAILABLE',
   OCCUPIED = 'OCCUPIED',
@@ -52,7 +53,7 @@ export interface RoomHistoryEntry {
   date: string;
   action: 'CHECK_IN' | 'CHECK_OUT' | 'STATUS_CHANGE' | 'MAINTENANCE' | 'INFO';
   description: string;
-  staffName?: string; // Optional: who performed the action
+  staffName?: string; 
 }
 
 export interface Room {
@@ -62,10 +63,10 @@ export interface Room {
   capacity: number;
   type: RoomType;
   status: RoomStatus;
-  price: number; // Base price
-  salePrice?: number; // Actual sold price in VND
+  price: number; 
+  salePrice?: number; 
   guestName?: string;
-  guestId?: string; // Link to the Guest Table
+  guestId?: string; 
   checkInDate?: string;
   checkOutDate?: string;
   checkInTime?: string;
@@ -75,9 +76,9 @@ export interface Room {
   maintenanceIssue?: string;
   bookingSource?: BookingSource;
   invoiceStatus?: InvoiceStatus;
-  futureReservations?: Reservation[]; // Changed from upcomingReservation to array
-  isIdScanned?: boolean; // KBTTT Compliance
-  icalUrl?: string; // Booking.com Calendar Link
+  futureReservations?: Reservation[];
+  isIdScanned?: boolean; 
+  icalUrl?: string; 
   history?: RoomHistoryEntry[];
 }
 
@@ -88,16 +89,16 @@ export interface OccupancyData {
 }
 
 export enum Currency {
-  VND = 'VND', // Vietnam
-  USD = 'USD', // USA
-  EUR = 'EUR', // Europe
-  KRW = 'KRW', // South Korea
-  JPY = 'JPY', // Japan
-  CNY = 'CNY', // China
-  GBP = 'GBP', // UK
-  AUD = 'AUD', // Australia
-  SGD = 'SGD', // Singapore
-  THB = 'THB'  // Thailand
+  VND = 'VND',
+  USD = 'USD',
+  EUR = 'EUR',
+  KRW = 'KRW',
+  JPY = 'JPY',
+  CNY = 'CNY',
+  GBP = 'GBP',
+  AUD = 'AUD',
+  SGD = 'SGD',
+  THB = 'THB'
 }
 
 export interface CashTransaction {
@@ -105,30 +106,8 @@ export interface CashTransaction {
   amount: number;
   currency: Currency;
   description: string;
-  date: string; // ISO string
+  date: string; 
   type: 'IN' | 'OUT';
-}
-
-export type EmployeeRole = 'Reception' | 'Housekeeping' | 'Manager' | 'Maintenance' | 'Security';
-
-export interface Employee {
-  id: string;
-  name: string;
-  role: EmployeeRole;
-  phone?: string;
-  hourlyRate?: number; // In VND
-  isWorking?: boolean; // Currently clocked in?
-  monthlyReviews?: number; // Deprecated: Kept for migration, use reviewsHistory
-  reviewsHistory?: Record<string, number>; // Key format: "YYYY-MM", Value: count
-}
-
-export interface TimeEntry {
-  id: string;
-  employeeId: string;
-  clockIn: string; // ISO String
-  clockOut?: string; // ISO String
-  totalPay?: number; // Calculated on clock out
-  notes?: string;
 }
 
 export enum BookingType {
@@ -141,9 +120,31 @@ export interface Booking {
   room_id: string;
   guest_name: string;
   guest_id?: string;
-  check_in_at: string; // ISO String
-  check_out_at: string; // ISO String
+  check_in_at: string; 
+  check_out_at: string; 
   booking_type: BookingType;
   status: 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED' | 'RESERVED';
   created_at?: string;
+}
+
+// Added Employee types for staff management
+export type EmployeeRole = 'Reception' | 'Housekeeping' | 'Maintenance' | 'Security' | 'Manager';
+
+export interface Employee {
+  id: string;
+  name: string;
+  role: EmployeeRole;
+  hourlyRate: number;
+  isWorking: boolean;
+  phone?: string;
+  reviewsHistory?: Record<string, number>;
+  monthlyReviews?: number;
+}
+
+export interface TimeEntry {
+  id: string;
+  employeeId: string;
+  clockIn: string;
+  clockOut?: string;
+  totalPay?: number;
 }

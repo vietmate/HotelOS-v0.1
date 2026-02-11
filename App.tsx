@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Room, RoomStatus, RoomType, BookingSource, Guest, RoomHistoryEntry, Employee, TimeEntry, EmployeeRole, Reservation, CashTransaction } from './types';
+import { Room, RoomStatus, RoomType, BookingSource, Guest, RoomHistoryEntry, Reservation, CashTransaction } from './types';
 import { RoomCard } from './components/RoomCard';
 import { RoomDetailPanel } from './components/RoomDetailPanel';
 import { OccupancyGauge } from './components/OccupancyGauge';
@@ -9,16 +9,13 @@ import { PettyCashWidget } from './components/PettyCashWidget';
 import { CalendarView } from './components/CalendarView';
 import { NotesView } from './components/NotesView';
 import { GuestFinder } from './components/GuestFinder';
-import { EmployeesView } from './components/EmployeesView';
 import { MobileDashboard } from './components/MobileDashboard';
-import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, CloudLightning, Moon, Sun, X, Users, Smartphone, LayoutTemplate, RotateCcw, Lock, Clock } from 'lucide-react';
+import { Building2, Plus, Filter, Search, Pencil, LayoutGrid, CalendarDays, NotebookPen, AlertTriangle, FileWarning, Settings2, Check, GripVertical, WifiOff, Moon, Sun, X, Smartphone, LayoutTemplate, RotateCcw, Lock, Clock } from 'lucide-react';
 import { translations, Language } from './translations';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 
 const STORAGE_KEY_ROOMS = 'hotel_os_rooms_data';
 const STORAGE_KEY_HOTEL_NAME = 'hotel_os_name';
-const STORAGE_KEY_EMPLOYEES = 'hotel_os_employees';
-const STORAGE_KEY_TIME_ENTRIES = 'hotel_os_time_entries';
 
 interface AppSetting {
   key: string;
@@ -31,8 +28,6 @@ const generateInitialRooms = (): Room[] => {
   yesterday.setDate(today.getDate() - 1);
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
-  const dayAfter = new Date(today);
-  dayAfter.setDate(today.getDate() + 3);
 
   const formatDate = (d: Date) => {
     const y = d.getFullYear();
@@ -60,23 +55,6 @@ const generateInitialRooms = (): Room[] => {
         salePrice = basePrice * (Math.random() > 0.5 ? 1 : 0.9); 
     }
 
-    const history: RoomHistoryEntry[] = [];
-    if (status === RoomStatus.OCCUPIED) {
-        history.push({
-            date: new Date().toISOString(),
-            action: 'CHECK_IN',
-            description: `Guest checked in: John Doe`,
-            staffName: 'Reception'
-        });
-    } else if (status === RoomStatus.DIRTY) {
-         history.push({
-            date: new Date(Date.now() - 3600000 * 2).toISOString(),
-            action: 'CHECK_OUT',
-            description: `Guest checked out`,
-            staffName: 'Reception'
-        });
-    }
-
     return {
       id: `room-${i + 1}`,
       number: `${100 + i + 1}`,
@@ -91,20 +69,18 @@ const generateInitialRooms = (): Room[] => {
       checkOutDate: status === RoomStatus.OCCUPIED ? formatDate(checkOut) : undefined,
       bookingSource: source,
       isIdScanned: isIdScanned,
-      history: history
+      history: []
     };
   });
 };
 
-type ViewMode = 'grid' | 'calendar' | 'notes' | 'employees';
+type ViewMode = 'grid' | 'calendar' | 'notes';
 type WidgetId = 'pettyCash' | 'alerts' | 'occupancy' | 'stats';
 
 const DEFAULT_WIDGET_ORDER: WidgetId[] = ['pettyCash', 'alerts', 'occupancy', 'stats'];
 
 export default function App() {
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [pettyCash, setPettyCash] = useState<CashTransaction[]>([]);
   const [notes, setNotes] = useState<Record<string, string>>({});
   
@@ -159,8 +135,6 @@ export default function App() {
 
   const fetchData = async () => {
     setIsLoading(true);
-    
-    // Load local defaults first
     setRooms(generateInitialRooms());
     setHotelName('HotelOS');
 
@@ -171,18 +145,14 @@ export default function App() {
     }
 
     try {
-        const [roomsRes, empRes, timeRes, cashRes, notesRes, settingsRes] = await Promise.all([
+        const [roomsRes, cashRes, notesRes, settingsRes] = await Promise.all([
             supabase.from('rooms').select('*').order('id'),
-            supabase.from('employees').select('*'),
-            supabase.from('time_entries').select('*').order('created_at', { ascending: false }),
             supabase.from('petty_cash').select('*').order('created_at', { ascending: false }),
             supabase.from('notes').select('*'),
             supabase.from('app_settings').select('*')
         ]);
 
         if (roomsRes.data) setRooms(roomsRes.data.map(r => r.data as Room).sort((a,b) => parseInt(a.number) - parseInt(b.number)));
-        if (empRes.data) setEmployees(empRes.data.map(r => r.data as Employee));
-        if (timeRes.data) setTimeEntries(timeRes.data.map(r => r.data as TimeEntry));
         if (cashRes.data) setPettyCash(cashRes.data.map(r => r.data as CashTransaction));
         
         if (notesRes.data) {
@@ -222,28 +192,6 @@ export default function App() {
                     const exists = prev.find(r => r.id === updated.id);
                     if (exists) return prev.map(r => r.id === updated.id ? updated : r);
                     return [...prev, updated].sort((a,b) => parseInt(a.number) - parseInt(b.number));
-                });
-            }
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, payload => {
-            if (payload.eventType === 'DELETE') setEmployees(prev => prev.filter(e => e.id !== payload.old.id));
-            else {
-                const updated = payload.new.data as Employee;
-                setEmployees(prev => {
-                    const exists = prev.find(e => e.id === updated.id);
-                    if (exists) return prev.map(e => e.id === updated.id ? updated : e);
-                    return [...prev, updated];
-                });
-            }
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'time_entries' }, payload => {
-            if (payload.eventType === 'DELETE') setTimeEntries(prev => prev.filter(t => t.id !== payload.old.id));
-            else {
-                const updated = payload.new.data as TimeEntry;
-                setTimeEntries(prev => {
-                    const exists = prev.find(t => t.id === updated.id);
-                    if (exists) return prev.map(t => t.id === updated.id ? updated : t);
-                    return [updated, ...prev];
                 });
             }
         })
@@ -306,36 +254,6 @@ export default function App() {
       }
   };
 
-  const onAddEmployee = async (emp: Employee) => {
-    setEmployees(prev => [...prev, emp]);
-    if (isSupabaseConfigured()) await supabase.from('employees').insert({ id: emp.id, data: emp });
-  };
-
-  const onUpdateEmployee = async (emp: Employee) => {
-    setEmployees(prev => prev.map(e => e.id === emp.id ? emp : e));
-    if (isSupabaseConfigured()) await supabase.from('employees').upsert({ id: emp.id, data: emp });
-  };
-
-  const onDeleteEmployee = async (id: string) => {
-    setEmployees(prev => prev.filter(e => e.id !== id));
-    if (isSupabaseConfigured()) await supabase.from('employees').delete().eq('id', id);
-  };
-
-  const onAddTimeEntry = async (entry: TimeEntry) => {
-    setTimeEntries(prev => [entry, ...prev]);
-    if (isSupabaseConfigured()) await supabase.from('time_entries').insert({ id: entry.id, data: entry });
-  };
-
-  const onUpdateTimeEntry = async (entry: TimeEntry) => {
-    setTimeEntries(prev => prev.map(t => t.id === entry.id ? entry : t));
-    if (isSupabaseConfigured()) await supabase.from('time_entries').upsert({ id: entry.id, data: entry });
-  };
-
-  const onDeleteTimeEntry = async (id: string) => {
-    setTimeEntries(prev => prev.filter(t => t.id !== id));
-    if (isSupabaseConfigured()) await supabase.from('time_entries').delete().eq('id', id);
-  };
-
   const onAddPettyCash = async (tx: CashTransaction) => {
       setPettyCash(prev => [tx, ...prev]);
       if (isSupabaseConfigured()) await supabase.from('petty_cash').insert({ id: tx.id, data: tx });
@@ -375,10 +293,8 @@ export default function App() {
             await Promise.all([
                 supabase.from('rooms').delete().neq('id', '0'),
                 supabase.from('guests').delete().neq('id', '0'),
-                supabase.from('time_entries').delete().neq('id', '0'),
                 supabase.from('petty_cash').delete().neq('id', '0'),
                 supabase.from('notes').delete().neq('date_key', '0'),
-                supabase.from('employees').delete().neq('id', '0'),
                 supabase.from('app_settings').upsert({ key: 'hotel_name', value: 'HotelOS' }),
                 supabase.from('app_settings').upsert({ key: 'widget_order', value: DEFAULT_WIDGET_ORDER })
             ]);
@@ -442,19 +358,6 @@ export default function App() {
     switch(viewMode) {
       case 'calendar': return <CalendarView rooms={filteredRooms} onRoomClick={setSelectedRoom} lang={lang} />;
       case 'notes': return <NotesView lang={lang} notes={notes} onSaveNote={onSaveNote} />;
-      case 'employees': return (
-        <EmployeesView 
-            lang={lang} 
-            employees={employees} 
-            onAddEmployee={onAddEmployee}
-            onUpdateEmployee={onUpdateEmployee}
-            onDeleteEmployee={onDeleteEmployee}
-            timeEntries={timeEntries} 
-            onAddTimeEntry={onAddTimeEntry}
-            onUpdateTimeEntry={onUpdateTimeEntry}
-            onDeleteTimeEntry={onDeleteTimeEntry}
-        />
-      );
       case 'grid':
       default: return (
            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-20">
@@ -518,7 +421,6 @@ export default function App() {
                               <button onClick={() => setViewMode('grid')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><LayoutGrid className="w-4 h-4" /> {t.views.grid}</button>
                               <button onClick={() => setViewMode('calendar')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><CalendarDays className="w-4 h-4" /> {t.views.calendar}</button>
                               <button onClick={() => setViewMode('notes')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'notes' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><NotebookPen className="w-4 h-4" /> {t.views.notes}</button>
-                              <button onClick={() => setViewMode('employees')} className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'employees' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}><Users className="w-4 h-4" /> {t.views.employees}</button>
                           </div>
                           <div className="hidden sm:flex items-center gap-3 px-3 py-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200/50 dark:border-slate-800/50 text-slate-500 dark:text-slate-400">
                               <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-indigo-500" /><span className="text-sm font-black font-mono tracking-tight text-slate-700 dark:text-slate-200">{compactTimeStr}</span></div>
